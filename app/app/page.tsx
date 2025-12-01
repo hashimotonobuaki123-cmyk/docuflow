@@ -121,6 +121,28 @@ async function togglePinned(formData: FormData) {
   revalidatePath("/app");
 }
 
+async function deleteDocumentFromList(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim() || null;
+  if (!id) return;
+
+  const { error } = await supabase.from("documents").delete().eq("id", id);
+
+  if (error) {
+    console.error("deleteDocumentFromList error:", error);
+    throw new Error("Failed to delete document.");
+  }
+
+  await logActivity("delete_document", {
+    documentId: id,
+    documentTitle: title,
+  });
+
+  revalidatePath("/app");
+}
+
 export async function deleteAccount() {
   "use server";
   console.warn(
@@ -725,6 +747,17 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                             }
                           >
                             ★
+                          </button>
+                        </form>
+                        <form action={deleteDocumentFromList}>
+                          <input type="hidden" name="id" value={doc.id} />
+                          <input type="hidden" name="title" value={doc.title} />
+                          <button
+                            type="submit"
+                            className="rounded-full border border-red-200 bg-white px-2 text-[10px] text-red-400 hover:bg-red-50"
+                            aria-label="ドキュメントを削除"
+                          >
+                            🗑
                           </button>
                         </form>
                       </div>
