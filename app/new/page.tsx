@@ -32,6 +32,75 @@ async function extractTextFromFile(file: File): Promise<string> {
   throw new Error("サポートされていないファイル形式です。PDF / DOC / DOCX のみ対応しています。");
 }
 
+// AI を使わず「とりあえず保存」する高速パス
+async function fastCreateDocument(formData: FormData) {
+  "use server";
+
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+
+  let title = String(formData.get("title") ?? "").trim();
+  let category = String(formData.get("category") ?? "").trim();
+  const rawContent = String(formData.get("rawContent") ?? "").trim();
+  const file = formData.get("file");
+
+  let content = rawContent;
+
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      console.error("アップロードされたファイルが大きすぎます（最大 10MB まで）。");
+      return;
+    }
+
+    try {
+      content = await extractTextFromFile(file);
+    } catch (e) {
+      console.error("ファイルからテキストを抽出できませんでした:", e);
+      return;
+    }
+  }
+
+  if (!content) {
+    return;
+  }
+
+  if (!title) {
+    title = content.slice(0, 30) || "無題ドキュメント";
+  }
+  if (!category) {
+    category = "未分類";
+  }
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      user_id: userId,
+      title,
+      category,
+      raw_content: content,
+      summary: null,
+      tags: [],
+      is_favorite: false,
+      is_pinned: false,
+    })
+    .select("id");
+
+  if (error) {
+    console.error("Supabase insert error (fastCreateDocument):", error);
+    throw new Error(`Failed to insert document: ${error.message}`);
+  }
+
+  const created = Array.isArray(data) && data.length > 0 ? data[0] : null;
+  if (created?.id) {
+    await logActivity("create_document", {
+      documentId: String(created.id),
+      documentTitle: title,
+    });
+  }
+
+  redirect("/");
+}
+
 async function createDocument(formData: FormData) {
   "use server";
 
@@ -72,17 +141,22 @@ async function createDocument(formData: FormData) {
   let tags: string[] = [];
 
   try {
-    // タイトル未入力の場合は、本文（またはアップロードされたファイルの内容）から自動生成
-    if (!title) {
-      title = await generateTitleFromContent(content);
-    }
+    const titlePromise = title
+      ? Promise.resolve(title)
+      : generateTitleFromContent(content);
+    const categoryPromise = category
+      ? Promise.resolve(category)
+      : generateCategoryFromContent(content);
+    const summaryPromise = generateSummaryAndTags(content);
 
-    // カテゴリ未入力の場合は、本文からカテゴリ名を自動生成
-    if (!category) {
-      category = await generateCategoryFromContent(content);
-    }
+    const [generatedTitle, generatedCategory, generated] = await Promise.all([
+      titlePromise,
+      categoryPromise,
+      summaryPromise,
+    ]);
 
-    const generated = await generateSummaryAndTags(content);
+    title = (generatedTitle || title || content.slice(0, 30)) || "無題ドキュメント";
+    category = (generatedCategory || category || "未分類") || "未分類";
     summary = generated.summary;
     tags = generated.tags;
   } catch (e) {
@@ -158,7 +232,7 @@ export default function NewDocumentPage() {
               テキストを直接入力するか、PDF / Word ファイルをアップロードすると、AI が要約とタグ
               （最大 3 つ）を自動生成します。
             </p>
-            <form action={createDocument} className="space-y-4">
+            <form className="space-y-4">
               <div>
                 <label
                   htmlFor="title"
@@ -230,7 +304,7 @@ export default function NewDocumentPage() {
 
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-slate-500">
-                  送信後、OpenAI で要約とタグを生成し、Supabase に保存します。
+                  右のボタンで AI 要約あり・なしを選べます。AI ありは少し時間がかかります。
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -241,6 +315,14 @@ export default function NewDocumentPage() {
                   </button>
                   <button
                     type="submit"
+                    formAction={fastCreateDocument}
+                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    とりあえず保存
+                  </button>
+                  <button
+                    type="submit"
+                    formAction={createDocument}
                     className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-400"
                   >
                     保存して要約生成

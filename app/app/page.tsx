@@ -192,10 +192,16 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
-  const { data, error } = await supabase
+  let documentsQuery = supabase
     .from("documents")
     .select("*")
     .order("created_at", { ascending: sort === "asc" });
+
+  if (userId) {
+    documentsQuery = documentsQuery.eq("user_id", userId);
+  }
+
+  const { data, error } = await documentsQuery;
 
   if (error) {
     console.error(error);
