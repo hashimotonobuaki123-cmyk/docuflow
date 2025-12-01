@@ -3,8 +3,16 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabaseClient";
 import { logActivity } from "@/lib/activityLog";
+import {
+  generateSummaryAndTags,
+  generateTitleFromContent,
+  generateCategoryFromContent,
+} from "@/lib/ai";
 import { Logo } from "@/components/Logo";
 import { UserMenu } from "./UserMenu";
+import { DocumentCardShortcuts } from "./DocumentCardShortcuts";
+import { BulkDeleteConfirmButton } from "./BulkDeleteConfirmButton";
+import { DragAndDropUpload } from "./DragAndDropUpload";
 import { filterDocuments } from "@/lib/filterDocuments";
 
 // UTC の ISO 文字列を、日本時間 (UTC+9) の "YYYY/MM/DD HH:MM" に変換するヘルパー
@@ -36,6 +44,30 @@ function getCategoryBadgeClasses(category: string): string {
   if (cat.includes("提案") || cat.includes("レポート"))
     return "bg-emerald-50 text-emerald-700 border border-emerald-100";
   return "bg-slate-100 text-slate-700 border border-slate-200";
+}
+
+// ファイルアップロードのサイズ上限（10MB）
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+// PDF / Word ファイルからテキストを抽出するヘルパー
+async function extractTextFromFile(file: File): Promise<string> {
+  const filename = file.name.toLowerCase();
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  if (filename.endsWith(".pdf")) {
+    const pdfParse = (await import("pdf-parse")).default;
+    const data = await pdfParse(buffer);
+    return (data.text ?? "").trim();
+  }
+
+  if (filename.endsWith(".doc") || filename.endsWith(".docx")) {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer });
+    return (result.value ?? "").trim();
+  }
+
+  throw new Error("サポートされていないファイル形式です。PDF / DOC / DOCX のみ対応しています。");
 }
 
 // 「直近30日で作成されたドキュメント数」を数えるためのヘルパー
@@ -139,6 +171,139 @@ async function deleteDocumentFromList(formData: FormData) {
     documentId: id,
     documentTitle: title,
   });
+
+  revalidatePath("/app");
+}
+
+async function deleteDocumentsBulk(formData: FormData) {
+  "use server";
+
+  const selectedIds = formData
+    .getAll("ids")
+    .map((v) => String(v).trim())
+    .filter((v) => v.length > 0);
+
+  const allIds = formData
+    .getAll("allIds")
+    .map((v) => String(v).trim())
+    .filter((v) => v.length > 0);
+
+  const ids = (selectedIds.length > 0 ? selectedIds : allIds).filter(
+    (v, idx, arr) => v.length > 0 && arr.indexOf(v) === idx
+  );
+
+  if (ids.length === 0) return;
+
+  // 削除前にタイトルを取得しておき、アクティビティログ用に使う
+  const { data: docs, error: fetchError } = await supabase
+    .from("documents")
+    .select("id, title")
+    .in("id", ids);
+
+  if (fetchError) {
+    console.error("deleteDocumentsBulk fetch error:", fetchError);
+    throw new Error("Failed to fetch documents for bulk delete.");
+  }
+
+  const { error } = await supabase.from("documents").delete().in("id", ids);
+
+  if (error) {
+    console.error("deleteDocumentsBulk error:", error);
+    throw new Error("Failed to delete documents.");
+  }
+
+  // それぞれのドキュメントについてアクティビティを記録
+  if (docs && Array.isArray(docs)) {
+    for (const doc of docs as { id: string; title: string | null }[]) {
+      await logActivity("delete_document", {
+        documentId: doc.id,
+        documentTitle: doc.title ?? null,
+      });
+    }
+  }
+
+  revalidatePath("/app");
+}
+
+// ダッシュボード上のドラッグ＆ドロップ / アップロードからドキュメントを作成するアクション
+async function createDocumentFromFileOnDashboard(formData: FormData) {
+  "use server";
+
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return;
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    console.error("アップロードされたファイルが大きすぎます（最大 10MB まで）。");
+    return;
+  }
+
+  let content: string;
+  try {
+    content = await extractTextFromFile(file);
+  } catch (e) {
+    console.error("ファイルからテキストを抽出できませんでした:", e);
+    return;
+  }
+
+  if (!content) {
+    return;
+  }
+
+  let title = "";
+  let category = "";
+  let summary = "";
+  let tags: string[] = [];
+
+  try {
+    const [generatedTitle, generatedCategory, generated] = await Promise.all([
+      generateTitleFromContent(content),
+      generateCategoryFromContent(content),
+      generateSummaryAndTags(content),
+    ]);
+
+    title = (generatedTitle || content.slice(0, 30)) || "無題ドキュメント";
+    category = (generatedCategory || "未分類") || "未分類";
+    summary = generated.summary;
+    tags = generated.tags;
+  } catch (e) {
+    console.error("AI generate error in createDocumentFromFileOnDashboard:", e);
+    title = content.slice(0, 30) || "無題ドキュメント";
+    category = "未分類";
+    summary = "";
+    tags = [];
+  }
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      user_id: userId,
+      title,
+      category,
+      raw_content: content,
+      summary,
+      tags,
+      is_favorite: false,
+      is_pinned: false,
+    })
+    .select("id");
+
+  if (error) {
+    console.error("Supabase insert error (createDocumentFromFileOnDashboard):", error);
+    throw new Error(`Failed to insert document: ${error.message}`);
+  }
+
+  const created = Array.isArray(data) && data.length > 0 ? data[0] : null;
+  if (created?.id) {
+    await logActivity("create_document", {
+      documentId: String(created.id),
+      documentTitle: title,
+    });
+  }
 
   revalidatePath("/app");
 }
@@ -390,6 +555,8 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
 
       {/* メインコンテンツ */}
       <div className="flex min-h-screen flex-1 flex-col">
+        {/* カード用ショートカットレイヤー（クライアントサイド） */}
+        <DocumentCardShortcuts />
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <h1 className="text-sm font-semibold text-slate-900">
@@ -501,6 +668,11 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
               })}
             </ul>
           )}
+        </section>
+
+        {/* ダッシュボード上からのドラッグ＆ドロップアップロード */}
+        <section>
+          <DragAndDropUpload uploadAction={createDocumentFromFileOnDashboard} />
         </section>
 
         {/* 検索フォーム */}
@@ -650,6 +822,18 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
               </p>
               {category && <p>カテゴリフィルタ: {category}</p>}
               <p>並び順: {sort === "asc" ? "古い順" : "新しい順"}</p>
+              <form
+                id="bulk-delete-form"
+                action={deleteDocumentsBulk}
+                className="mt-1 inline-flex items-center justify-end gap-2"
+              >
+                <BulkDeleteConfirmButton formId="bulk-delete-form" />
+                <span className="text-[10px] text-slate-400">
+                  「すべて選択」で表示中のカードを一括選択して
+                  <span className="font-semibold"> すべて削除 </span>
+                  / カード上で <span className="font-semibold">Shift + D</span> でも削除できます
+                </span>
+              </form>
             </div>
           </div>
 
@@ -668,25 +852,43 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
               {sortedDocuments.map((doc) => (
                 <article
                   key={doc.id}
+                  data-doc-card
                   className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-500/60 hover:shadow-md"
                 >
+                  {/* すべて削除用に、表示中ドキュメントの ID を hidden で送る */}
+                  <input
+                    type="hidden"
+                    name="allIds"
+                    value={doc.id}
+                    form="bulk-delete-form"
+                  />
                   <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <Link
-                        href={`/documents/${doc.id}`}
-                        className="line-clamp-2 text-sm font-semibold text-slate-900 hover:underline"
-                      >
-                        {doc.title}
-                      </Link>
-                      {doc.category && (
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(
-                            doc.category
-                          )}`}
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        name="ids"
+                        value={doc.id}
+                        form="bulk-delete-form"
+                        className="mt-1 h-3 w-3 rounded border-slate-300 text-rose-500 focus:ring-rose-500"
+                        aria-label={`${doc.title} を一括削除対象にする`}
+                      />
+                      <div className="space-y-1">
+                        <Link
+                          href={`/documents/${doc.id}`}
+                          className="line-clamp-2 text-sm font-semibold text-slate-900 hover:underline"
                         >
-                          {doc.category}
-                        </span>
-                      )}
+                          {doc.title}
+                        </Link>
+                        {doc.category && (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(
+                              doc.category
+                            )}`}
+                          >
+                            {doc.category}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       {(() => {
@@ -761,6 +963,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                           <button
                             type="submit"
                             className="rounded-full border border-red-200 bg-white px-2 text-[10px] text-red-400 hover:bg-red-50"
+                            data-doc-delete-button
                             aria-label="ドキュメントを削除"
                           >
                             🗑
@@ -834,6 +1037,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                         <button
                           type="submit"
                           className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-white px-2 py-0.5 text-[10px] font-medium text-red-500 hover:bg-red-50"
+                          data-doc-delete-button
                         >
                           🗑 <span>削除</span>
                         </button>
