@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { filterDocuments } from "@/app/app/page";
-
-type Document = Parameters<typeof filterDocuments>[0][number];
+import {
+  filterDocuments,
+  type FilterableDocument as Document,
+} from "../lib/filterDocuments";
 
 const baseDoc = (overrides: Partial<Document>): Document => ({
   id: "1",

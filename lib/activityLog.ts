@@ -22,7 +22,7 @@ export async function logActivity(
   payload: ActivityPayload = {}
 ) {
   const cookieStore = await cookies();
-  const userId = cookieStore.get("dooai_user_id")?.value ?? null;
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
   if (!userId) return;
 

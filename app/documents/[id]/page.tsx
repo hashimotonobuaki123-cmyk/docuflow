@@ -110,7 +110,7 @@ async function addComment(formData: FormData) {
   if (!documentId || !content) return;
 
   const cookieStore = await cookies();
-  const userId = cookieStore.get("dooai_user_id")?.value ?? null;
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
   const { error } = await supabase.from("document_comments").insert({
     document_id: documentId,

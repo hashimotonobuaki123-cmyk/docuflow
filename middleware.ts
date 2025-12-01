@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PATHS = ["/app", "/new", "/documents", "/settings"];
-const AUTH_COOKIE = "dooai_auth";
+const AUTH_COOKIE = "docuhub_ai_auth";
 
 function isProtectedPath(pathname: string) {
   return (

@@ -74,7 +74,7 @@ export default async function EditDocumentPage({ params }: PageProps) {
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-              dooai
+              DocuFlow
             </h1>
             <p className="text-sm text-slate-500">ドキュメント編集</p>
           </div>

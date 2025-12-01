@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { logActivity } from "@/lib/activityLog";
 import { Logo } from "@/components/Logo";
 import { UserMenu } from "./UserMenu";
+import { filterDocuments } from "@/lib/filterDocuments";
 
 type Document = {
   id: string;
@@ -94,36 +95,6 @@ type DashboardProps = {
   }>;
 };
 
-export function filterDocuments(
-  documents: Document[],
-  query?: string,
-  category?: string,
-  onlyFavorites?: boolean,
-  onlyPinned?: boolean
-) {
-  const q = query?.toLowerCase().trim() ?? "";
-  const normalizedCategory = category?.trim() ?? "";
-
-  return documents.filter((doc) => {
-    const inCategory =
-      !normalizedCategory || doc.category === normalizedCategory;
-
-    const inText =
-      !q ||
-      doc.title.toLowerCase().includes(q) ||
-      (doc.summary ?? "").toLowerCase().includes(q) ||
-      (doc.raw_content ?? "").toLowerCase().includes(q) ||
-      (Array.isArray(doc.tags)
-        ? doc.tags.some((tag) => tag.toLowerCase().includes(q))
-        : false);
-
-    const favoriteOk = !onlyFavorites || doc.is_favorite;
-    const pinnedOk = !onlyPinned || doc.is_pinned;
-
-    return inCategory && inText && favoriteOk && pinnedOk;
-  });
-}
-
 function describeActivity(log: ActivityLog): string {
   switch (log.action) {
     case "create_document":
@@ -154,7 +125,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
   const onlyPinned = params?.onlyPinned === "1";
 
   const cookieStore = await cookies();
-  const userId = cookieStore.get("dooai_user_id")?.value ?? null;
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
   const { data, error } = await supabase
     .from("documents")
@@ -189,8 +160,8 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
       return a.is_pinned ? -1 : 1;
     }
 
-    const aTime = new Date(a.created_at).getTime();
-    const bTime = new Date(b.created_at).getTime();
+    const aTime = new Date(a.created_at as string).getTime();
+    const bTime = new Date(b.created_at as string).getTime();
 
     return sort === "asc" ? aTime - bTime : bTime - aTime;
   });
@@ -235,11 +206,28 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
 
   // document_id ごとの「作成日時」（create_document アクションの最初の時刻）をマップ化
   const documentCreatedAtMap = new Map<string, string>();
-  for (const log of recentActivities) {
-    if (log.action !== "create_document" || !log.document_id) continue;
-    const prev = documentCreatedAtMap.get(log.document_id);
-    if (!prev || new Date(log.created_at) < new Date(prev)) {
-      documentCreatedAtMap.set(log.document_id, log.created_at);
+  if (userId && allDocuments.length > 0) {
+    const documentIds = allDocuments.map((d) => d.id);
+    const { data: createdLogs, error: createdLogsError } = await supabase
+      .from("activity_logs")
+      .select("document_id, created_at")
+      .eq("user_id", userId)
+      .eq("action", "create_document")
+      .in("document_id", documentIds);
+
+    if (createdLogsError) {
+      console.error(createdLogsError);
+    } else if (createdLogs) {
+      for (const log of createdLogs as {
+        document_id: string | null;
+        created_at: string;
+      }[]) {
+        if (!log.document_id) continue;
+        const prev = documentCreatedAtMap.get(log.document_id);
+        if (!prev || new Date(log.created_at) < new Date(prev)) {
+          documentCreatedAtMap.set(log.document_id, log.created_at);
+        }
+      }
     }
   }
 
@@ -539,11 +527,11 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                           documentCreatedAtMap.get(doc.id) ?? doc.created_at;
                         return (
                           <time
-                            dateTime={createdAt ?? undefined}
+                            dateTime={(createdAt as string | null) ?? undefined}
                             className="shrink-0 text-[10px] text-slate-400"
                           >
                             {createdAt
-                              ? new Date(createdAt).toLocaleString("ja-JP", {
+                              ? new Date(createdAt as string).toLocaleString("ja-JP", {
                                   year: "numeric",
                                   month: "2-digit",
                                   day: "2-digit",

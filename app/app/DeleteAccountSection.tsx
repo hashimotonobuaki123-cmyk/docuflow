@@ -15,8 +15,8 @@ export function DeleteAccountSection({ deleteAccount }: Props) {
         アカウントの削除
       </h3>
       <p className="mb-3 text-xs text-red-600">
-        このワークスペースで作成したドキュメントと変更履歴、および dooai
-        アカウントをすべて削除します。復元はできません。
+        このワークスペースで作成したドキュメントと変更履歴、および DocuFlow
+        のアカウントをすべて削除します。復元はできません。
       </p>
       <form
         action={(formData) => {

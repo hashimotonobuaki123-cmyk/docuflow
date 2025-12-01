@@ -8,8 +8,8 @@ export default function LogoutPage() {
 
   useEffect(() => {
     // 認証用クッキーを削除
-    document.cookie = "dooai_auth=; path=/; max-age=0";
-    document.cookie = "dooai_user_id=; path=/; max-age=0";
+    document.cookie = "docuhub_ai_auth=; path=/; max-age=0";
+    document.cookie = "docuhub_ai_user_id=; path=/; max-age=0";
     router.replace("/auth/login");
   }, [router]);
 

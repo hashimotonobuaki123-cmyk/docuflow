@@ -56,7 +56,7 @@ export default function SignupPage() {
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-slate-900">
-              dooai
+              DocuFlow
             </h1>
             <p className="text-xs text-slate-500">サインアップ</p>
           </div>

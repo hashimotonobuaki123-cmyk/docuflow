@@ -11,8 +11,8 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
 
 ### デモ / Live
 
-- 本番環境（例）: https://docuflow-pi.vercel.app  
-  ※ Vercel 上のデプロイ例です。環境変数と Supabase プロジェクトを自分で用意すれば、同様の構成で動かせます。
+- 本番環境: https://docuflow-azure.vercel.app  
+  - 初期表示で `/auth/login` にリダイレクトされます（ログイン後は `/app` へ）。
 
 ### このリポジトリで見せたいポイント
 
@@ -72,6 +72,15 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
 
 - **AI 要約の再生成**
   - ドキュメント詳細から「要約を再生成」ボタンを押すと、最新の本文をもとに AI による要約・タグを再作成
+
+---
+
+### 詳細ドキュメント（設計・仕様）
+
+- [機能仕様書（DocuFlow Spec）](docs/spec-docuflow.md)
+- [画面一覧 & 画面遷移（UI Flow）](docs/ui-flow.md)
+- [DB スキーマ / テーブル定義](docs/db-schema.md)
+- [アーキテクチャ設計メモ](docs/architecture.md)
 
 ---
 
@@ -227,7 +236,13 @@ npm run dev
 # 型チェック & Lint
 npm run lint
 
-# 本番ビルド
+# テスト（Vitest）
+npm test
+
+# カバレッジ付きテスト
+npm run test:coverage
+
+# 本番ビルド & 起動
 npm run build
 npm start
 ```
@@ -236,7 +251,7 @@ npm start
 ログイン後は `/app` のワークスペース画面に遷移します。
 
 > 本番環境にデプロイした場合は、`http://localhost:3000` の代わりに  
-> Vercel などの発行した URL（例: `https://docuhub-ai.example.com`）にアクセスします。
+> Vercel などの発行した URL（例: `https://docuflow.example.com`）にアクセスします。
 
 ---
 
@@ -302,7 +317,7 @@ OpenAI
 
 - **ログイン**
   1. `/auth/login` から Supabase Auth にサインイン  
-  2. 成功したら `dooai_auth=1` と `dooai_user_id=<supabase user id>` をクッキーに保存  
+  2. 成功したら `docuhub_ai_auth=1` と `docuhub_ai_user_id=<supabase user id>` をクッキーに保存  
   3. `middleware.ts` がこれらを見て `/app` / `/new` / `/documents/*` へのアクセスを制御
 
 - **ドキュメント新規作成（テキスト or PDF / Word）**

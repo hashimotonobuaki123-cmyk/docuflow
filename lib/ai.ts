@@ -117,4 +117,45 @@ ${rawContent}
   return title || "無題ドキュメント";
 }
 
+export async function generateCategoryFromContent(rawContent: string) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("Missing OPENAI_API_KEY environment variable.");
+  }
+
+  const prompt = `
+あなたは日本語のドキュメントを「カテゴリ名」に分類するアシスタントです。
+以下の本文を読み、最もふさわしいカテゴリ名を1つだけ日本語で返してください。
+
+- 例: 仕様書, 議事録, 企画書, 提案書, レポート, メモ, マニュアル など
+- 最大4〜6文字程度
+- JSON ではなく、カテゴリ名の文字列だけを返してください
+
+本文:
+---
+${rawContent}
+---
+`.trim();
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an assistant that generates concise Japanese document category names.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    temperature: 0.2,
+  });
+
+  let category = response.choices[0]?.message?.content?.trim() ?? "";
+  category = category.replace(/^["「『\s]+/, "").replace(/["」』\s]+$/, "");
+
+  return category || "未分類";
+}
+
 

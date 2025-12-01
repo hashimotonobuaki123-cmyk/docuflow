@@ -35,12 +35,12 @@ function LoginForm() {
     }
 
     // 簡易的なログインフラグ（ミドルウェアで参照）
-    document.cookie = "dooai_auth=1; path=/;";
+    document.cookie = "docuhub_ai_auth=1; path=/;";
 
     // user_id をクッキーに保持して、サーバー側から参照できるようにする
     const userId = data.user?.id;
     if (userId) {
-      document.cookie = `dooai_user_id=${userId}; path=/;`;
+      document.cookie = `docuhub_ai_user_id=${userId}; path=/;`;
     }
 
     setStatus("ログインしました。");

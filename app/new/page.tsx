@@ -2,7 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
-import { generateSummaryAndTags, generateTitleFromContent } from "@/lib/ai";
+import {
+  generateSummaryAndTags,
+  generateTitleFromContent,
+  generateCategoryFromContent,
+} from "@/lib/ai";
 import { logActivity } from "@/lib/activityLog";
 import { Logo } from "@/components/Logo";
 
@@ -32,10 +36,10 @@ async function createDocument(formData: FormData) {
   "use server";
 
   const cookieStore = await cookies();
-  const userId = cookieStore.get("dooai_user_id")?.value ?? null;
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
   let title = String(formData.get("title") ?? "").trim();
-  const category = String(formData.get("category") ?? "").trim();
+  let category = String(formData.get("category") ?? "").trim();
   const rawContent = String(formData.get("rawContent") ?? "").trim();
   const file = formData.get("file");
 
@@ -64,6 +68,11 @@ async function createDocument(formData: FormData) {
   // タイトル未入力の場合は、本文（またはアップロードされたファイルの内容）から自動生成
   if (!title) {
     title = await generateTitleFromContent(content);
+  }
+
+  // カテゴリ未入力の場合は、本文からカテゴリ名を自動生成
+  if (!category) {
+    category = await generateCategoryFromContent(content);
   }
 
   const { summary, tags } = await generateSummaryAndTags(content);

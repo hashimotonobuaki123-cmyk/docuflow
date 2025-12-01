@@ -54,7 +54,7 @@
 | `user_id`       | uuid        | ✔︎   | 操作ユーザー ID。 |
 | `document_id`   | uuid        | ✖︎   | 対象ドキュメント ID（アカウント削除などでは null）。 |
 | `document_title`| text        | ✖︎   | 対象ドキュメントのタイトル（ログ時点のコピー）。 |
-| `action`        | text        | ✔︎   | アクション種別。例: `create_document`, `update_document`, `delete_document`, `toggle_favorite`, `toggle_pinned`, `enable_share`, `disable_share`, `delete_account` 等。 |
+| `action`        | text        | ✔︎   | アクション種別。例: `create_document`, `update_document`, `delete_document`, `toggle_favorite`, `toggle_pinned`, `enable_share`, `disable_share`, `add_comment` 等。 |
 | `metadata`      | jsonb       | ✖︎   | 追加情報（例: `{ "details": "on" }` など）。 |
 | `created_at`    | timestamptz | ✔︎   | ログ作成日時。デフォルト `now()`。 |
 
