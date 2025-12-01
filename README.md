@@ -1,3 +1,9 @@
+![DocuFlow ダッシュボード](docs/screenshots/dashboard.png)
+
+**DocuFlow – AI 要約で、PDF / Word 資料を一瞬で整理するドキュメントワークスペース**
+
+本番環境: https://docuflow-azure.vercel.app
+
 ## DocuFlow
 
 AI 要約とタグ自動生成で、テキスト / PDF / Word ドキュメントを整理するミニ SaaS です。  
