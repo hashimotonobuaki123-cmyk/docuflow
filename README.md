@@ -2,6 +2,9 @@
 
 **DocuFlow – AI 要約で、PDF / Word 資料を一瞬で整理するドキュメントワークスペース**
 
+![CI](https://github.com/hashimotonobuaki123-cmyk/docuflow/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://img.shields.io/badge/coverage-local--lcov-green)
+
 本番環境: https://docuflow-azure.vercel.app
 
 ## DocuFlow
@@ -11,8 +14,9 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
 
 ### デモ / Live
 
-- 本番環境: https://docuflow-azure.vercel.app  
+- 本番環境: https://docuflow-azure.vercel.app
   - 初期表示で `/auth/login` にリダイレクトされます（ログイン後は `/app` へ）。
+  - README 冒頭と下部の「スクリーンショット」セクションの画像は、本番と同等の UI をローカルで撮影したものです。
 
 ### このリポジトリで見せたいポイント
 
@@ -257,17 +261,26 @@ npm start
 
 ## スクリーンショット（UI イメージ）
 
-GitHub 上で見たときに UI の雰囲気が伝わるよう、`docs/screenshots` 配下にスクリーンショットを置いておくと見栄えが良くなります。
+GitHub 上で見たときに UI の雰囲気が一目で伝わるよう、`docs/screenshots` 配下の実際の画面キャプチャをそのまま貼っています。
 
-```markdown
 ![ダッシュボード画面](docs/screenshots/dashboard.png)
-![新規ドキュメント作成画面](docs/screenshots/new-document.png)
-![ドキュメント詳細画面](docs/screenshots/document-detail.png)
-![設定画面](docs/screenshots/settings.png)
-```
 
-※ 上記パスに実際の PNG 画像（`dashboard.png` など）を配置してください。  
-　README からリンクされているだけなので、好みの解像度・枚数で OK です。
+> ドキュメント一覧、インサイトカード、カテゴリ別ミニグラフ、ドラッグ＆ドロップアップロード、ショートカット説明などをまとめたメインワークスペース。
+
+![新規ドキュメント作成画面](docs/screenshots/new-document.png)
+
+> 2 カラムレイアウトの新規作成画面。左にフォーム（タイトル / カテゴリ / 本文 / ファイルアップロード）、右に AI 要約の説明と使い方ガイド。
+
+![ドキュメント詳細画面](docs/screenshots/document-detail.png)
+
+> AI 要約、メタ情報（文字数・推定読了時間）、コメント欄、共有リンクボタン、バージョン履歴などをまとめた詳細ビュー。
+
+![設定画面](docs/screenshots/settings.png)
+
+> アカウント関連の設定と「アカウントを完全に削除する」セクションをまとめたシンプルな設定ページ。
+
+※ それぞれの PNG ファイル（`dashboard.png`, `new-document.png`, `document-detail.png`, `settings.png`）は  
+　`docs/screenshots/` に保存された実際のキャプチャ画像を想定しています。好みに応じて差し替え・追加してかまいません。
 
 ---
 
@@ -316,32 +329,32 @@ OpenAI
 ### 主なフロー
 
 - **ログイン**
-  1. `/auth/login` から Supabase Auth にサインイン  
-  2. 成功したら `docuhub_ai_auth=1` と `docuhub_ai_user_id=<supabase user id>` をクッキーに保存  
+  1. `/auth/login` から Supabase Auth にサインイン
+  2. 成功したら `docuhub_ai_auth=1` と `docuhub_ai_user_id=<supabase user id>` をクッキーに保存
   3. `middleware.ts` がこれらを見て `/app` / `/new` / `/documents/*` へのアクセスを制御
 
 - **ドキュメント新規作成（テキスト or PDF / Word）**
-  1. `/new` でタイトル・カテゴリ・本文、もしくは PDF / Word ファイルを入力  
-  2. Server Action `createDocument` がフォームを受け取り、必要ならファイルを `pdf-parse` / `mammoth` でテキスト抽出  
-  3. 抽出された本文を `generateTitleFromContent` / `generateSummaryAndTags` に渡して AI からタイトル・要約・タグを取得  
-  4. Supabase `documents` に `user_id` 付きで保存  
+  1. `/new` でタイトル・カテゴリ・本文、もしくは PDF / Word ファイルを入力
+  2. Server Action `createDocument` がフォームを受け取り、必要ならファイルを `pdf-parse` / `mammoth` でテキスト抽出
+  3. 抽出された本文を `generateTitleFromContent` / `generateSummaryAndTags` に渡して AI からタイトル・要約・タグを取得
+  4. Supabase `documents` に `user_id` 付きで保存
   5. `/` → middleware 経由で `/app` にリダイレクトされ、一覧に反映
 
 - **一覧・検索**
-  1. `/app` で `documents` を `user_id` で絞り込み  
-  2. 取得結果をフロント側でフィルタ（タイトル / 要約 / 本文 / タグ）＋カテゴリ＋並び順  
+  1. `/app` で `documents` を `user_id` で絞り込み
+  2. 取得結果をフロント側でフィルタ（タイトル / 要約 / 本文 / タグ）＋カテゴリ＋並び順
   3. ピン留めされたドキュメントを優先して表示し、★ / 📌 の Server Action で状態を更新
 
 - **編集 & バージョン履歴**
-  1. `/documents/[id]/edit` からドキュメントを更新する際、現在の内容を `document_versions` にコピーしてから本体を更新  
+  1. `/documents/[id]/edit` からドキュメントを更新する際、現在の内容を `document_versions` にコピーしてから本体を更新
   2. `/documents/[id]` で最新 5 件のバージョン履歴を一覧表示
 
 - **アカウント削除**
-  1. `/app` の「アカウントを完全に削除する」を押すと、ブラウザで確認ダイアログを表示  
-  2. OK の場合、Server Action `deleteAccount` が `documents` / `document_versions` を削除  
-  3. `supabaseAdmin`（service_role キー利用）で Supabase Auth のユーザーも削除  
+  1. `/app` の「アカウントを完全に削除する」を押すと、ブラウザで確認ダイアログを表示
+  2. OK の場合、Server Action `deleteAccount` が `documents` / `document_versions` を削除
+  3. `supabaseAdmin`（service_role キー利用）で Supabase Auth のユーザーも削除
   4. `/auth/logout` にリダイレクトし、クッキーを削除してセッション終了
-  
+
 この構成により、「Next.js 16 App Router × Supabase × OpenAI」というよくある技術スタックの中で、  
 **認証・AI 要約・タグ付け・ファイルアップロード・共有リンク・アクティビティログ・アカウント削除** までを一通り体験できるサンプルとして使えるようにしています。
 
@@ -354,4 +367,3 @@ OpenAI
 - **より高度な RLS 運用**: `@supabase/auth-helpers-nextjs` を導入し、`auth.uid()` ベースで RLS を本番レベルで有効化
 - **バージョン比較 UI**: `document_versions` 間で差分（diff）を表示する画面を追加し、過去版との比較をしやすくする
 - **全文検索エンジン連携**: Supabase の `pgvector` もしくは外部の検索サービスと連携し、ベクトル検索による類似ドキュメント検索を実験
-

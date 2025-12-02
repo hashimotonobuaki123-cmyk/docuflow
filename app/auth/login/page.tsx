@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -147,7 +147,8 @@ function LoginForm() {
           </div>
 
           <p className="pt-1 text-[10px] leading-relaxed text-slate-500">
-            ※ Supabase の Authentication 設定で「Email + Password」サインインを有効にしておいてください。
+            ※ Supabase の Authentication 設定で「Email +
+            Password」サインインを有効にしておいてください。
           </p>
         </section>
       </main>
@@ -162,5 +163,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-
-

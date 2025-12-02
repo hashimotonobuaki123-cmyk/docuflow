@@ -82,10 +82,37 @@ describe("filterDocuments", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
   });
+
+  it("onlyFavorites=true のときお気に入りだけ返す", () => {
+    const docs: Document[] = [
+      baseDoc({ id: "1", title: "A", is_favorite: true }),
+      baseDoc({ id: "2", title: "B", is_favorite: false }),
+    ];
+
+    const result = filterDocuments(docs, "", "", true, false);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("1");
+  });
+
+  it("onlyPinned=true のときピン留めだけ返す", () => {
+    const docs: Document[] = [
+      baseDoc({ id: "1", title: "A", is_pinned: true }),
+      baseDoc({ id: "2", title: "B", is_pinned: false }),
+    ];
+
+    const result = filterDocuments(docs, "", "", false, true);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("1");
+  });
+
+  it("クエリは大文字小文字を区別せずにマッチする", () => {
+    const docs: Document[] = [
+      baseDoc({ id: "1", title: "Next.js 入門" }),
+      baseDoc({ id: "2", title: "React メモ" }),
+    ];
+
+    const result = filterDocuments(docs, "NEXT.JS", "");
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("1");
+  });
 });
-
-
-
-
-
-

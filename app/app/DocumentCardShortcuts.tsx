@@ -29,34 +29,25 @@ export function DocumentCardShortcuts() {
       if (!target) return;
 
       // リンクやボタンなど、明示的な操作要素はそのまま動かす
-      const interactive = target.closest("a, button, input, textarea, select, label");
+      const interactive = target.closest(
+        "a, button, input, textarea, select, label",
+      );
       if (interactive) return;
 
       const card = target.closest<HTMLElement>("[data-doc-card]");
       if (!card) return;
 
-      const checkbox = card.querySelector<HTMLInputElement>('input[name="ids"]');
+      const checkbox =
+        card.querySelector<HTMLInputElement>('input[name="ids"]');
       if (!checkbox) return;
 
       const next = !checkbox.checked;
       checkbox.checked = next;
 
-      card.classList.toggle(
-        "ring-2",
-        next,
-      );
-      card.classList.toggle(
-        "ring-rose-300",
-        next,
-      );
-      card.classList.toggle(
-        "border-rose-300",
-        next,
-      );
-      card.classList.toggle(
-        "bg-rose-50/40",
-        next,
-      );
+      card.classList.toggle("ring-2", next);
+      card.classList.toggle("ring-rose-300", next);
+      card.classList.toggle("border-rose-300", next);
+      card.classList.toggle("bg-rose-50/40", next);
     };
 
     // チェックボックスを直接クリックした場合も枠色を同期
@@ -68,22 +59,10 @@ export function DocumentCardShortcuts() {
       if (!card) return;
 
       const checked = target.checked;
-      card.classList.toggle(
-        "ring-2",
-        checked,
-      );
-      card.classList.toggle(
-        "ring-rose-300",
-        checked,
-      );
-      card.classList.toggle(
-        "border-rose-300",
-        checked,
-      );
-      card.classList.toggle(
-        "bg-rose-50/40",
-        checked,
-      );
+      card.classList.toggle("ring-2", checked);
+      card.classList.toggle("ring-rose-300", checked);
+      card.classList.toggle("border-rose-300", checked);
+      card.classList.toggle("bg-rose-50/40", checked);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -93,7 +72,10 @@ export function DocumentCardShortcuts() {
 
       // Shift + D のみ（ブラウザ標準の Cmd+D / Ctrl+D とは被らないようにする）
       const isShiftD =
-        (key === "d" || key === "D") && event.shiftKey && !event.metaKey && !event.ctrlKey;
+        (key === "d" || key === "D") &&
+        event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey;
 
       if (isShiftD) {
         const deleteButton = currentCard.querySelector<
@@ -122,5 +104,3 @@ export function DocumentCardShortcuts() {
 
   return null;
 }
-
-

@@ -16,7 +16,7 @@ export function filterDocuments(
   query?: string,
   category?: string,
   onlyFavorites?: boolean,
-  onlyPinned?: boolean
+  onlyPinned?: boolean,
 ) {
   const q = query?.toLowerCase().trim() ?? "";
   const normalizedCategory = category?.trim() ?? "";
@@ -40,5 +40,3 @@ export function filterDocuments(
     return inCategory && inText && favoriteOk && pinnedOk;
   });
 }
-
-

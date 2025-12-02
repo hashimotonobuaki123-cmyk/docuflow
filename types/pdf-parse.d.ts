@@ -1,8 +1,1 @@
 declare module "pdf-parse";
-
-
-
-
-
-
-

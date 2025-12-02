@@ -37,7 +37,8 @@ export function DragAndDropUpload({ uploadAction }: Props) {
     const droppedFiles = Array.from(event.dataTransfer.files ?? []);
     const validFiles = droppedFiles.filter(
       (file) =>
-        ALLOWED_TYPES.includes(file.type) || file.name.match(/\.(pdf|doc|docx)$/i)
+        ALLOWED_TYPES.includes(file.type) ||
+        file.name.match(/\.(pdf|doc|docx)$/i),
     );
 
     if (validFiles.length === 0) {
@@ -55,18 +56,22 @@ export function DragAndDropUpload({ uploadAction }: Props) {
       setMessage(
         validFiles.length === 1
           ? "AI がドキュメントを読み込み中です…"
-          : `AI が ${validFiles.length} 件のドキュメントを読み込み中です…`
+          : `AI が ${validFiles.length} 件のドキュメントを読み込み中です…`,
       );
       await uploadAction(formData);
       // 成功するとサーバーアクション側で /app が再検証され、新しいカードが一覧に表示される
       setMessage(
         validFiles.length === 1
           ? "カードを作成しました。数秒後に一覧へ反映されます。"
-          : `${validFiles.length} 枚のカードを作成しました。数秒後に一覧へ反映されます。`
+          : `${validFiles.length} 枚のカードを作成しました。数秒後に一覧へ反映されます。`,
       );
     } catch (e) {
       console.error(e);
-      setMessage("アップロードに失敗しました。時間をおいて再度お試しください。");
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "アップロードに失敗しました。時間をおいて再度お試しください。";
+      setMessage(message);
     } finally {
       setIsUploading(false);
     }
@@ -88,7 +93,8 @@ export function DragAndDropUpload({ uploadAction }: Props) {
           ファイルをここにドラッグ＆ドロップしてカードを作成
         </p>
         <p className="text-[10px] text-slate-500">
-          PDF / Word（.pdf / .doc / .docx）をドロップすると、AI がタイトル・概要・タグ付きのカードを自動生成します。
+          PDF / Word（.pdf / .doc / .docx）をドロップすると、AI
+          がタイトル・概要・タグ付きのカードを自動生成します。
         </p>
         {isUploading && (
           <p className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600">
@@ -97,13 +103,7 @@ export function DragAndDropUpload({ uploadAction }: Props) {
           </p>
         )}
       </div>
-      {message && (
-        <p className="mt-2 text-[10px] text-slate-500">
-          {message}
-        </p>
-      )}
+      {message && <p className="mt-2 text-[10px] text-slate-500">{message}</p>}
     </div>
   );
 }
-
-

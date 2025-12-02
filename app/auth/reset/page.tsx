@@ -17,7 +17,7 @@ export default function ResetPasswordPage() {
     supabaseBrowser.auth.getSession().then(({ data }) => {
       if (!data.session) {
         setError(
-          "パスワード再設定用のリンクが無効か、期限切れです。もう一度メールからやり直してください。"
+          "パスワード再設定用のリンクが無効か、期限切れです。もう一度メールからやり直してください。",
         );
       } else {
         setReady(true);
@@ -53,7 +53,9 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setStatus("パスワードを更新しました。ログイン画面からログインしてください。");
+    setStatus(
+      "パスワードを更新しました。ログイン画面からログインしてください。",
+    );
   };
 
   return (
@@ -149,5 +151,3 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
-
-

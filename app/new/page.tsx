@@ -9,28 +9,11 @@ import {
 } from "@/lib/ai";
 import { logActivity } from "@/lib/activityLog";
 import { Logo } from "@/components/Logo";
+import { NewSubmitButtons } from "@/components/NewSubmitButtons";
+import { NewFileDropZone } from "@/components/NewFileDropZone";
+import { extractTextFromFile } from "@/lib/fileTextExtractor";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-
-async function extractTextFromFile(file: File): Promise<string> {
-  const filename = file.name.toLowerCase();
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  if (filename.endsWith(".pdf")) {
-    const pdfParse = (await import("pdf-parse")).default;
-    const data = await pdfParse(buffer);
-    return (data.text ?? "").trim();
-  }
-
-  if (filename.endsWith(".doc") || filename.endsWith(".docx")) {
-    const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    return (result.value ?? "").trim();
-  }
-
-  throw new Error("サポートされていないファイル形式です。PDF / DOC / DOCX のみ対応しています。");
-}
 
 // AI を使わず「とりあえず保存」する高速パス
 async function fastCreateDocument(formData: FormData) {
@@ -48,7 +31,9 @@ async function fastCreateDocument(formData: FormData) {
 
   if (file instanceof File && file.size > 0) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      console.error("アップロードされたファイルが大きすぎます（最大 10MB まで）。");
+      console.error(
+        "アップロードされたファイルが大きすぎます（最大 10MB まで）。",
+      );
       return;
     }
 
@@ -82,6 +67,8 @@ async function fastCreateDocument(formData: FormData) {
       tags: [],
       is_favorite: false,
       is_pinned: false,
+      // 新規作成時は必ず「未アーカイブ」として扱う
+      is_archived: false,
     })
     .select("id");
 
@@ -116,7 +103,9 @@ async function createDocument(formData: FormData) {
 
   if (file instanceof File && file.size > 0) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      console.error("アップロードされたファイルが大きすぎます（最大 10MB まで）。");
+      console.error(
+        "アップロードされたファイルが大きすぎます（最大 10MB まで）。",
+      );
       return;
     }
 
@@ -155,8 +144,9 @@ async function createDocument(formData: FormData) {
       summaryPromise,
     ]);
 
-    title = (generatedTitle || title || content.slice(0, 30)) || "無題ドキュメント";
-    category = (generatedCategory || category || "未分類") || "未分類";
+    title =
+      generatedTitle || title || content.slice(0, 30) || "無題ドキュメント";
+    category = generatedCategory || category || "未分類" || "未分類";
     summary = generated.summary;
     tags = generated.tags;
   } catch (e) {
@@ -185,6 +175,8 @@ async function createDocument(formData: FormData) {
       // お気に入り / ピン留めは新規作成時は false で初期化
       is_favorite: false,
       is_pinned: false,
+      // 新規作成時は必ず「未アーカイブ」として扱う
+      is_archived: false,
     })
     .select("id");
 
@@ -229,10 +221,11 @@ export default function NewDocumentPage() {
               ドキュメント情報
             </h2>
             <p className="mb-6 text-xs text-slate-500">
-              テキストを直接入力するか、PDF / Word ファイルをアップロードすると、AI が要約とタグ
-              （最大 3 つ）を自動生成します。
+              テキストを直接入力するか、PDF / Word
+              ファイルをアップロードすると、AI が要約とタグ （最大 3
+              つ）を自動生成します。
             </p>
-            <form className="space-y-4">
+            <form className="space-y-4" action={createDocument}>
               <div>
                 <label
                   htmlFor="title"
@@ -271,7 +264,8 @@ export default function NewDocumentPage() {
                   本文（AI 要約の元になるテキスト）
                 </label>
                 <p className="mb-2 text-xs text-slate-500">
-                  この本文をもとに AI が要約とタグ（3 つ）を自動生成します。PDF / Word
+                  この本文をもとに AI が要約とタグ（3 つ）を自動生成します。PDF
+                  / Word
                   ファイルをアップロードした場合は、その中身のテキストがここに自動で保存されます。
                 </p>
                 <textarea
@@ -291,20 +285,23 @@ export default function NewDocumentPage() {
                   PDF / Word ファイルから読み込む
                 </label>
                 <p className="mb-2 text-xs text-slate-500">
-                  .pdf / .doc / .docx に対応（10MB まで）。アップロードされたファイルはテキストに変換して保存されます。
+                  .pdf / .doc / .docx に対応（10MB
+                  まで）。アップロードされたファイルはテキストに変換して保存されます。
                 </p>
                 <input
                   id="file"
                   name="file"
                   type="file"
                   accept=".pdf,.doc,.docx"
-                  className="block w-full text-xs text-slate-700 file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
+                  className="hidden"
                 />
+                <NewFileDropZone inputId="file" />
               </div>
 
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-slate-500">
-                  右のボタンで AI 要約あり・なしを選べます。AI ありは少し時間がかかります。
+                  右のボタンで AI 要約あり・なしを選べます。AI
+                  ありは少し時間がかかります。
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -313,20 +310,10 @@ export default function NewDocumentPage() {
                   >
                     入力内容を破棄
                   </button>
-                  <button
-                    type="submit"
-                    formAction={fastCreateDocument}
-                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    とりあえず保存
-                  </button>
-                  <button
-                    type="submit"
-                    formAction={createDocument}
-                    className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-400"
-                  >
-                    保存して要約生成
-                  </button>
+                  <NewSubmitButtons
+                    fastAction={fastCreateDocument}
+                    aiAction={createDocument}
+                  />
                 </div>
               </div>
             </form>
@@ -339,8 +326,9 @@ export default function NewDocumentPage() {
                 DocuFlow について
               </p>
               <p className="mt-1 leading-relaxed">
-                DocuFlow は、AI 要約で PDF や Word 資料を一瞬で整理するためのミニ
-                SaaS です。営業資料・企画書・議事録など、バラバラなドキュメントを 1
+                DocuFlow は、AI 要約で PDF や Word
+                資料を一瞬で整理するためのミニ SaaS
+                です。営業資料・企画書・議事録など、バラバラなドキュメントを 1
                 つのワークスペースに集約できます。
               </p>
             </div>
@@ -362,9 +350,15 @@ export default function NewDocumentPage() {
                 おすすめの使い方
               </p>
               <ul className="mt-2 space-y-1.5 list-disc pl-4">
-                <li>長い PDF 資料をアップロードして、要点だけを素早く把握する</li>
-                <li>会議の議事録を貼り付けて、後から検索しやすいタグを自動付与する</li>
-                <li>社内ナレッジやマニュアルをカテゴリごとに整理してストックする</li>
+                <li>
+                  長い PDF 資料をアップロードして、要点だけを素早く把握する
+                </li>
+                <li>
+                  会議の議事録を貼り付けて、後から検索しやすいタグを自動付与する
+                </li>
+                <li>
+                  社内ナレッジやマニュアルをカテゴリごとに整理してストックする
+                </li>
               </ul>
             </div>
           </aside>
@@ -373,5 +367,3 @@ export default function NewDocumentPage() {
     </div>
   );
 }
-
-

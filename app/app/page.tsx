@@ -8,10 +8,12 @@ import {
   generateTitleFromContent,
   generateCategoryFromContent,
 } from "@/lib/ai";
+import { extractTextFromFile } from "@/lib/fileTextExtractor";
 import { Logo } from "@/components/Logo";
 import { UserMenu } from "./UserMenu";
 import { DocumentCardShortcuts } from "./DocumentCardShortcuts";
 import { BulkDeleteConfirmButton } from "./BulkDeleteConfirmButton";
+import { BulkRestoreButton } from "./BulkRestoreButton";
 import { DragAndDropUpload } from "./DragAndDropUpload";
 import { filterDocuments } from "@/lib/filterDocuments";
 
@@ -36,7 +38,8 @@ function formatJstDateTime(value: string | null): string | null {
 // カテゴリごとのバッジカラー（SaaS っぽく）
 function getCategoryBadgeClasses(category: string): string {
   const cat = category.trim();
-  if (cat.includes("仕様")) return "bg-sky-50 text-sky-700 border border-sky-100";
+  if (cat.includes("仕様"))
+    return "bg-sky-50 text-sky-700 border border-sky-100";
   if (cat.includes("議事") || cat.includes("MTG"))
     return "bg-amber-50 text-amber-700 border border-amber-100";
   if (cat.includes("企画") || cat.includes("計画"))
@@ -49,27 +52,6 @@ function getCategoryBadgeClasses(category: string): string {
 // ファイルアップロードのサイズ上限（10MB）
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
-// PDF / Word ファイルからテキストを抽出するヘルパー
-async function extractTextFromFile(file: File): Promise<string> {
-  const filename = file.name.toLowerCase();
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  if (filename.endsWith(".pdf")) {
-    const pdfParse = (await import("pdf-parse")).default;
-    const data = await pdfParse(buffer);
-    return (data.text ?? "").trim();
-  }
-
-  if (filename.endsWith(".doc") || filename.endsWith(".docx")) {
-    const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    return (result.value ?? "").trim();
-  }
-
-  throw new Error("サポートされていないファイル形式です。PDF / DOC / DOCX のみ対応しています。");
-}
-
 // 「直近30日で作成されたドキュメント数」を数えるためのヘルパー
 // Date.now() の呼び出しはここ（コンポーネント外）に閉じ込めて React の純粋性ルールを守る
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -79,6 +61,43 @@ function countDocumentsCreatedLast30Days(documents: Document[]): number {
     const t = new Date(d.created_at as string).getTime();
     return !Number.isNaN(t) && now - t <= THIRTY_DAYS_MS;
   }).length;
+}
+
+type WeeklyCount = {
+  label: string;
+  count: number;
+};
+
+// 直近4週間（3週前〜今週）の週単位件数を出すミニグラフ用ヘルパー
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+function computeWeeklyCountsLast4(documents: Document[]): WeeklyCount[] {
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const startMs = startOfToday.getTime() - 3 * 7 * ONE_DAY_MS;
+
+  const buckets: WeeklyCount[] = [
+    { label: "3週前", count: 0 },
+    { label: "2週前", count: 0 },
+    { label: "先週", count: 0 },
+    { label: "今週", count: 0 },
+  ];
+
+  for (const d of documents) {
+    const t = new Date(d.created_at as string).getTime();
+    if (Number.isNaN(t) || t < startMs) continue;
+
+    const diffDays = Math.floor((t - startMs) / ONE_DAY_MS);
+    const index = Math.min(3, Math.floor(diffDays / 7));
+    if (index < 0 || index > 3) continue;
+
+    buckets[index].count += 1;
+  }
+
+  return buckets;
 }
 
 type Document = {
@@ -92,7 +111,7 @@ type Document = {
   user_id: string | null;
   is_favorite: boolean;
   is_pinned: boolean;
-   is_archived?: boolean | null;
+  is_archived?: boolean | null;
   share_token?: string | null;
 };
 
@@ -205,6 +224,9 @@ async function toggleArchivedFromList(formData: FormData) {
 async function deleteDocumentsBulk(formData: FormData) {
   "use server";
 
+  const mode = String(formData.get("mode") ?? "delete");
+  const isRestore = mode === "restore";
+
   const selectedIds = formData
     .getAll("ids")
     .map((v) => String(v).trim())
@@ -216,12 +238,12 @@ async function deleteDocumentsBulk(formData: FormData) {
     .filter((v) => v.length > 0);
 
   const ids = (selectedIds.length > 0 ? selectedIds : allIds).filter(
-    (v, idx, arr) => v.length > 0 && arr.indexOf(v) === idx
+    (v, idx, arr) => v.length > 0 && arr.indexOf(v) === idx,
   );
 
   if (ids.length === 0) return;
 
-  // 削除前にタイトルを取得しておき、アクティビティログ用に使う
+  // 対象ドキュメントのタイトルを取得しておき、アクティビティログ用に使う
   const { data: docs, error: fetchError } = await supabase
     .from("documents")
     .select("id, title")
@@ -232,20 +254,48 @@ async function deleteDocumentsBulk(formData: FormData) {
     throw new Error("Failed to fetch documents for bulk delete.");
   }
 
-  const { error } = await supabase.from("documents").delete().in("id", ids);
+  if (isRestore) {
+    // 一括復元: is_archived を false に戻す
+    const { error: updateError } = await supabase
+      .from("documents")
+      .update({ is_archived: false })
+      .in("id", ids);
 
-  if (error) {
-    console.error("deleteDocumentsBulk error:", error);
-    throw new Error("Failed to delete documents.");
+    if (updateError) {
+      console.error("bulk restore error:", updateError);
+      throw new Error("Failed to restore documents.");
+    }
+
+    if (docs && Array.isArray(docs)) {
+      for (const doc of docs as { id: string; title: string | null }[]) {
+        await logActivity("restore_document", {
+          documentId: doc.id,
+          documentTitle: doc.title ?? null,
+        });
+      }
+    }
+
+    revalidatePath("/app");
+    return;
   }
 
-  // それぞれのドキュメントについてアクティビティを記録
-  if (docs && Array.isArray(docs)) {
-    for (const doc of docs as { id: string; title: string | null }[]) {
-      await logActivity("delete_document", {
-        documentId: doc.id,
-        documentTitle: doc.title ?? null,
-      });
+  // 一括削除（従来の挙動）
+  {
+    const { error } = await supabase.from("documents").delete().in("id", ids);
+
+    if (error) {
+      console.error("deleteDocumentsBulk error:", error);
+      throw new Error("Failed to delete documents.");
+    }
+
+    // それぞれのドキュメントについてアクティビティを記録
+    if (docs && Array.isArray(docs)) {
+      for (const doc of docs as { id: string; title: string | null }[]) {
+        await logActivity("delete_document", {
+          documentId: doc.id,
+          documentTitle: doc.title ?? null,
+        });
+      }
     }
   }
 
@@ -253,41 +303,108 @@ async function deleteDocumentsBulk(formData: FormData) {
 }
 
 // ダッシュボード上のドラッグ＆ドロップ / アップロードからドキュメントを作成するアクション
-async function createDocumentFromFileOnDashboard(formData: FormData) {
+export async function createDocumentFromFileOnDashboard(formData: FormData) {
   "use server";
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
+  if (!userId) {
+    // ログイン情報が取れない場合は、保存しても後で参照できないので明示的にエラーにする
+    throw new Error(
+      "ログイン情報が見つかりませんでした。もう一度ログインしてからファイルをアップロードしてください。",
+    );
+  }
+
   // 複数ファイル対応: "files" に複数入っていればそれを優先し、なければ従来の "file" 1件のみ扱う
-  const filesFromForm = formData.getAll("files").filter(
-    (f): f is File => f instanceof File && f.size > 0
-  );
+  const filesFromForm = formData
+    .getAll("files")
+    .filter((f): f is File => f instanceof File && f.size > 0);
 
   const fallbackFile = formData.get("file");
-  if (filesFromForm.length === 0 && fallbackFile instanceof File && fallbackFile.size > 0) {
+  if (
+    filesFromForm.length === 0 &&
+    fallbackFile instanceof File &&
+    fallbackFile.size > 0
+  ) {
     filesFromForm.push(fallbackFile);
   }
 
   if (filesFromForm.length === 0) {
-    return;
+    // ブラウザからファイルが届いていない（非対応形式など）の場合はエラーとして返す
+    throw new Error(
+      "ファイルが読み取れませんでした。PDF / Word（.pdf / .doc / .docx）か確認してください。",
+    );
   }
+
+  let createdCount = 0;
+  let lastError: Error | null = null;
 
   for (const file of filesFromForm) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      console.error("アップロードされたファイルが大きすぎます（最大 10MB まで）。");
+      const err = new Error(
+        "アップロードされたファイルが大きすぎます（最大 10MB まで）。",
+      );
+      console.error(err.message);
+      lastError = err;
       continue;
     }
 
-    let content: string;
+    let content = "";
     try {
       content = await extractTextFromFile(file);
     } catch (e) {
       console.error("ファイルからテキストを抽出できませんでした:", e);
+      lastError = new Error(
+        "ファイルからテキストを抽出できませんでした。PDF / Word ファイルの形式を確認してください。",
+      );
       continue;
     }
 
+    // ファイルからテキストが取れなかった場合でも、「空の本文＋注意書き付きカード」を作る
     if (!content) {
+      const baseTitle =
+        file.name.replace(/\.(pdf|docx?|PDF|DOCX?)$/, "") || file.name;
+      const fallbackTitle = baseTitle || "無題ドキュメント";
+      const fallbackSummary =
+        "このファイルからテキストを抽出できませんでした。";
+
+      const { data, error } = await supabase
+        .from("documents")
+        .insert({
+          user_id: userId,
+          title: fallbackTitle,
+          category: "未分類",
+          raw_content: "",
+          summary: fallbackSummary,
+          tags: [],
+          is_favorite: false,
+          is_pinned: false,
+          is_archived: false,
+        })
+        .select("id");
+
+      if (error) {
+        console.error(
+          "Supabase insert error (createDocumentFromFileOnDashboard, empty content):",
+          error,
+        );
+        lastError = new Error(
+          `ドキュメントの保存に失敗しました: ${error.message ?? "原因不明のエラー"}`,
+        );
+        continue;
+      }
+
+      const created = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      if (created?.id) {
+        await logActivity("create_document", {
+          documentId: String(created.id),
+          documentTitle: fallbackTitle,
+        });
+        createdCount += 1;
+      }
+
+      // このファイルについては AI 生成をスキップして次へ
       continue;
     }
 
@@ -303,12 +420,15 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
         generateSummaryAndTags(content),
       ]);
 
-      title = (generatedTitle || content.slice(0, 30)) || "無題ドキュメント";
-      category = (generatedCategory || "未分類") || "未分類";
+      title = generatedTitle || content.slice(0, 30) || "無題ドキュメント";
+      category = generatedCategory || "未分類" || "未分類";
       summary = generated.summary;
       tags = generated.tags;
     } catch (e) {
-      console.error("AI generate error in createDocumentFromFileOnDashboard:", e);
+      console.error(
+        "AI generate error in createDocumentFromFileOnDashboard:",
+        e,
+      );
       title = content.slice(0, 30) || "無題ドキュメント";
       category = "未分類";
       summary = "";
@@ -326,11 +446,19 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
         tags,
         is_favorite: false,
         is_pinned: false,
+        // 新規作成時は必ず「未アーカイブ」として扱う
+        is_archived: false,
       })
       .select("id");
 
     if (error) {
-      console.error("Supabase insert error (createDocumentFromFileOnDashboard):", error);
+      console.error(
+        "Supabase insert error (createDocumentFromFileOnDashboard):",
+        error,
+      );
+      lastError = new Error(
+        `ドキュメントの保存に失敗しました: ${error.message ?? "原因不明のエラー"}`,
+      );
       continue;
     }
 
@@ -340,7 +468,19 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
         documentId: String(created.id),
         documentTitle: title,
       });
+      createdCount += 1;
     }
+  }
+
+  if (createdCount === 0 && lastError) {
+    // 1件も作成できず、何らかのエラー情報がある場合はそれを前面に出す
+    throw lastError;
+  }
+  if (createdCount === 0) {
+    // 安全側のフォールバック
+    throw new Error(
+      "カードを作成できませんでした。PDF / Word ファイルの形式やログイン状態を確認してください。",
+    );
   }
 
   revalidatePath("/app");
@@ -349,7 +489,7 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
 export async function deleteAccount() {
   "use server";
   console.warn(
-    "[deleteAccount] この関数は app/app/accountActions.ts に移動しました。新しい設定ページから使用してください。"
+    "[deleteAccount] この関数は app/app/accountActions.ts に移動しました。新しい設定ページから使用してください。",
   );
 }
 
@@ -419,14 +559,14 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
   }
 
   const allDocuments = ((data as Document[]) ?? []).filter((doc) =>
-    userId ? doc.user_id === userId : true
+    userId ? doc.user_id === userId : true,
   );
   const categories = Array.from(
     new Set(
       allDocuments
         .map((doc) => doc.category)
-        .filter((c): c is string => !!c && c.length > 0)
-    )
+        .filter((c): c is string => !!c && c.length > 0),
+    ),
   ).sort((a, b) => a.localeCompare(b, "ja"));
 
   const documents = filterDocuments(
@@ -434,7 +574,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
     query,
     category,
     onlyFavorites,
-    onlyPinned
+    onlyPinned,
   );
 
   const sortedDocuments = [...documents].sort((a, b) => {
@@ -467,15 +607,17 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
   const totalCount = allDocuments.length;
   const pinnedCount = allDocuments.filter((d) => d.is_pinned).length;
   const favoriteCount = allDocuments.filter((d) => d.is_favorite).length;
-  const archivedCount = allDocuments.filter((d) => (d as Document).is_archived).length;
+  const archivedCount = allDocuments.filter(
+    (d) => (d as Document).is_archived,
+  ).length;
   const sharedCount = allDocuments.filter((d) => !!d.share_token).length;
   const avgContentLength =
     allDocuments.length > 0
       ? Math.round(
           allDocuments.reduce(
             (sum, d) => sum + (d.raw_content?.length ?? 0),
-            0
-          ) / allDocuments.length
+            0,
+          ) / allDocuments.length,
         )
       : 0;
   const lastActivityAt =
@@ -489,9 +631,15 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
     new Set(
       allDocuments
         .map((d) => d.category)
-        .filter((c): c is string => !!c && c.length > 0)
-    )
+        .filter((c): c is string => !!c && c.length > 0),
+    ),
   ).length;
+
+  const weeklyCounts = computeWeeklyCountsLast4(allDocuments);
+  const maxWeeklyCount =
+    weeklyCounts.length > 0
+      ? weeklyCounts.reduce((m, b) => Math.max(m, b.count), 0)
+      : 0;
 
   // カテゴリ別件数のトップ3を集計（ミニグラフ風カード用）
   const categoryStats: [string, number][] = (() => {
@@ -501,7 +649,9 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
       if (!cat) continue;
       counter.set(cat, (counter.get(cat) ?? 0) + 1);
     }
-    return Array.from(counter.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return Array.from(counter.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
   })();
   const maxCategoryCount = categoryStats.length > 0 ? categoryStats[0][1] : 0;
 
@@ -521,7 +671,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
         if (!row.document_id) continue;
         commentCountMap.set(
           row.document_id,
-          (commentCountMap.get(row.document_id) ?? 0) + 1
+          (commentCountMap.get(row.document_id) ?? 0) + 1,
         );
       }
     }
@@ -620,578 +770,686 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
         </header>
 
         <main className="mx-auto flex max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
-        {/* 概要カード */}
-        <section className="grid gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-sky-50 p-4 shadow-sm">
-            <p className="text-[11px] font-medium text-slate-500">ドキュメント総数</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
-              {totalCount}
-              <span className="ml-1 text-xs font-normal text-slate-500">件</span>
-            </p>
-            {lastActivityAt && (
-              <p className="mt-2 text-[11px] text-slate-500">
-                最近の操作: {lastActivityAt}
+          {/* 概要カード */}
+          <section className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-sky-50 p-4 shadow-sm">
+              <p className="text-[11px] font-medium text-slate-500">
+                ドキュメント総数
               </p>
-            )}
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-medium text-slate-500">ピン留め</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
-              {pinnedCount}
-              <span className="ml-1 text-xs font-normal text-slate-500">件</span>
-            </p>
-            <p className="mt-2 text-[11px] text-slate-500">
-              一覧の先頭に表示されます
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-medium text-slate-500">お気に入り</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
-              {favoriteCount}
-              <span className="ml-1 text-xs font-normal text-slate-500">件</span>
-            </p>
-            <p className="mt-2 text-[11px] text-slate-500">
-              よく使うドキュメントを素早く見つけられます
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-medium text-slate-500">インサイト</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              直近30日 {createdLast30Days} 件
-            </p>
-            <dl className="mt-2 space-y-1 text-[11px] text-slate-500">
-              <div className="flex items-center justify-between">
-                <dt>アクティブカテゴリ</dt>
-                <dd className="font-semibold">{categoryCount} 種類</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>共有リンク発行中</dt>
-                <dd className="font-semibold">{sharedCount} 件</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>平均本文ボリューム</dt>
-                <dd className="font-semibold">
-                  {avgContentLength.toLocaleString("ja-JP")} 文字
-                </dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>アーカイブ済み</dt>
-                <dd className="font-semibold">{archivedCount} 件</dd>
-              </div>
-            </dl>
-          </div>
-        </section>
-
-        {/* カテゴリ別トップ3（ミニグラフ風） */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-slate-900">
-              カテゴリ別ドキュメント数（トップ3）
-            </h2>
-            <p className="text-[11px] text-slate-500">
-              カテゴリの偏りや使われ方の傾向をざっくり確認できます
-            </p>
-          </div>
-          {categoryStats.length === 0 ? (
-            <p className="text-[11px] text-slate-500">
-              まだカテゴリが付いたドキュメントがありません。
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {categoryStats.map(([cat, count]) => {
-                const ratio =
-                  maxCategoryCount > 0 ? Math.max(0, (count / maxCategoryCount) * 100) : 0;
-                return (
-                  <li key={cat} className="flex items-center gap-2">
-                    <span className="w-20 truncate text-[11px] font-medium text-slate-700">
-                      {cat}
-                    </span>
-                    <div className="relative h-2 flex-1 rounded-full bg-slate-100">
-                      <div
-                        className="h-2 rounded-full bg-emerald-500"
-                        style={{ width: `${ratio}%` }}
-                        aria-hidden="true"
-                      />
-                    </div>
-                    <span className="w-6 text-right text-[11px] text-slate-600">{count}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* ダッシュボード上からのドラッグ＆ドロップアップロード */}
-        <section>
-          <DragAndDropUpload uploadAction={createDocumentFromFileOnDashboard} />
-        </section>
-
-        {/* 検索フォーム */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-          <form className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-            <div className="flex-1">
-              <label
-                htmlFor="q"
-                className="mb-1 block text-xs font-medium text-slate-700"
-              >
-                検索（タイトル・本文・タグ）
-              </label>
-              <input
-                id="q"
-                name="q"
-                defaultValue={query}
-                placeholder="例: プロジェクト計画, API 設計..."
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
-              />
-            </div>
-
-            <div className="min-w-[140px]">
-              <label
-                htmlFor="category"
-                className="mb-1 block text-xs font-medium text-slate-700"
-              >
-                カテゴリ
-              </label>
-              <select
-                id="category"
-                name="category"
-                defaultValue={category}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
-              >
-                <option value="">すべて</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="min-w-[120px]">
-              <label
-                htmlFor="sort"
-                className="mb-1 block text-xs font-medium text-slate-700"
-              >
-                並び順
-              </label>
-              <select
-                id="sort"
-                name="sort"
-                defaultValue={sort}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
-              >
-                <option value="desc">新しい順</option>
-                <option value="asc">古い順</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col items-start gap-2">
-              <div className="flex gap-3 text-[11px] text-slate-700">
-                <label className="inline-flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    name="onlyPinned"
-                    value="1"
-                    defaultChecked={onlyPinned}
-                    className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                  />
-                  <span>ピンのみ</span>
-                </label>
-                <label className="inline-flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    name="onlyFavorites"
-                    value="1"
-                    defaultChecked={onlyFavorites}
-                    className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                  />
-                  <span>お気に入りのみ</span>
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-400"
-                >
-                  検索
-                </button>
-                <Link
-                  href="/new"
-                  className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-                >
-                  新規作成
-                </Link>
-              </div>
-            </div>
-          </form>
-
-          {/* クイックフィルタ */}
-          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-            <span className="text-slate-500">クイックフィルタ:</span>
-            <Link
-              href="/app"
-              className={`inline-flex items-center rounded-full px-2 py-1 ${
-                !query && !category && !onlyFavorites && !onlyPinned && !showArchived
-                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                  : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
-              }`}
-            >
-              すべて
-            </Link>
-            <Link
-              href="/app?onlyPinned=1"
-              className={`inline-flex items-center rounded-full px-2 py-1 ${
-                onlyPinned
-                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                  : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
-              }`}
-            >
-              ピンだけ
-            </Link>
-            <Link
-              href="/app?onlyFavorites=1"
-              className={`inline-flex items-center rounded-full px-2 py-1 ${
-                onlyFavorites
-                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                  : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
-              }`}
-            >
-              お気に入りだけ
-            </Link>
-            <Link
-              href="/app?archived=1"
-              className={`inline-flex items-center rounded-full px-2 py-1 ${
-                showArchived
-                  ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                  : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
-              }`}
-            >
-              アーカイブ
-            </Link>
-          </div>
-        </section>
-
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">
-              {showArchived ? "アーカイブされたドキュメント" : "あなたのドキュメント"}
-            </h2>
-            <div className="text-right text-xs text-slate-500">
-              <p>
-                {sortedDocuments.length} 件
-                {query ? `（検索ワード: "${query}"）` : ""}
-              </p>
-              {category && <p>カテゴリフィルタ: {category}</p>}
-              <p>並び順: {sort === "asc" ? "古い順" : "新しい順"}</p>
-              <form
-                id="bulk-delete-form"
-                action={deleteDocumentsBulk}
-                className="mt-1 inline-flex items-center justify-end gap-2"
-              >
-                <BulkDeleteConfirmButton formId="bulk-delete-form" />
-                <span className="text-[10px] text-slate-400">
-                  「すべて選択」で表示中のカードを一括選択して
-                  <span className="font-semibold"> すべて削除 </span>
-                  / カード上で <span className="font-semibold">Shift + D</span> でも削除できます
+              <p className="mt-1 text-2xl font-semibold text-slate-900">
+                {totalCount}
+                <span className="ml-1 text-xs font-normal text-slate-500">
+                  件
                 </span>
-              </form>
+              </p>
+              {lastActivityAt && (
+                <p className="mt-2 text-[11px] text-slate-500">
+                  最近の操作: {lastActivityAt}
+                </p>
+              )}
             </div>
-          </div>
-
-          {sortedDocuments.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-              ドキュメントがまだありません。
-              <Link
-                href="/new"
-                className="ml-1 font-medium text-emerald-600 underline-offset-2 hover:underline"
-              >
-                最初のドキュメントを作成しましょう。
-              </Link>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-medium text-slate-500">ピン留め</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">
+                {pinnedCount}
+                <span className="ml-1 text-xs font-normal text-slate-500">
+                  件
+                </span>
+              </p>
+              <p className="mt-2 text-[11px] text-slate-500">
+                一覧の先頭に表示されます
+              </p>
             </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {sortedDocuments.map((doc) => (
-                <article
-                  key={doc.id}
-                  data-doc-card
-                  className={`flex flex-col rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                    (doc as Document).is_archived
-                      ? "border-slate-200 bg-slate-50"
-                      : "border-slate-200 bg-white hover:border-emerald-500/60"
-                  }`}
-                >
-                  {/* すべて削除用に、表示中ドキュメントの ID を hidden で送る */}
-                  <input
-                    type="hidden"
-                    name="allIds"
-                    value={doc.id}
-                    form="bulk-delete-form"
-                  />
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2">
-                      <input
-                        type="checkbox"
-                        name="ids"
-                        value={doc.id}
-                        form="bulk-delete-form"
-                        className="mt-1 h-3 w-3 rounded border-slate-300 text-rose-500 focus:ring-rose-500"
-                        aria-label={`${doc.title} を一括削除対象にする`}
-                      />
-                      <div className="space-y-1">
-                        <Link
-                          href={`/documents/${doc.id}`}
-                          className="line-clamp-2 text-sm font-semibold text-slate-900 hover:underline"
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-medium text-slate-500">
+                お気に入り
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">
+                {favoriteCount}
+                <span className="ml-1 text-xs font-normal text-slate-500">
+                  件
+                </span>
+              </p>
+              <p className="mt-2 text-[11px] text-slate-500">
+                よく使うドキュメントを素早く見つけられます
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-medium text-slate-500">
+                インサイト
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">
+                直近30日 {createdLast30Days} 件
+              </p>
+              <dl className="mt-2 space-y-1 text-[11px] text-slate-500">
+                <div className="flex items-center justify-between">
+                  <dt>アクティブカテゴリ</dt>
+                  <dd className="font-semibold">{categoryCount} 種類</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt>共有リンク発行中</dt>
+                  <dd className="font-semibold">{sharedCount} 件</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt>平均本文ボリューム</dt>
+                  <dd className="font-semibold">
+                    {avgContentLength.toLocaleString("ja-JP")} 文字
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt>アーカイブ済み</dt>
+                  <dd className="font-semibold">{archivedCount} 件</dd>
+                </div>
+              </dl>
+              <div className="mt-3">
+                <p className="mb-1 flex items-center justify-between text-[10px] text-slate-500">
+                  <span>直近4週間の作成数</span>
+                  <span className="text-[9px]">
+                    左から{" "}
+                    <span className="font-medium text-slate-700">3週前</span> →{" "}
+                    <span className="font-medium text-slate-700">今週</span>
+                  </span>
+                </p>
+                {maxWeeklyCount === 0 ? (
+                  <p className="text-[10px] text-slate-400">
+                    まだ直近4週間に作成されたドキュメントがありません。
+                  </p>
+                ) : (
+                  <div className="flex h-16 items-end gap-1.5">
+                    {weeklyCounts.map((bucket) => {
+                      const ratio =
+                        maxWeeklyCount > 0
+                          ? Math.max(
+                              0.12,
+                              Math.min(1, bucket.count / maxWeeklyCount),
+                            )
+                          : 0;
+                      const heightPercent = Math.round(ratio * 100);
+                      return (
+                        <div
+                          key={bucket.label}
+                          className="flex flex-1 flex-col items-center justify-end gap-0.5"
                         >
-                          {doc.title}
-                        </Link>
-                        {doc.category && (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(
-                              doc.category
-                            )}`}
-                          >
-                            {doc.category}
+                          <div className="flex w-full items-end justify-center rounded-t-md bg-slate-100">
+                            <div
+                              className="w-3/4 rounded-t-md bg-gradient-to-t from-emerald-300 to-emerald-500"
+                              style={{ height: `${heightPercent}%` }}
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <span className="text-[9px] text-slate-500">
+                            {bucket.label}
                           </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      {(() => {
-                        const createdAt =
-                          documentCreatedAtMap.get(doc.id) ?? doc.created_at;
-                        return (
-                          <time
-                            dateTime={(createdAt as string | null) ?? undefined}
-                            className="shrink-0 text-[10px] text-slate-400"
-                          >
-                            {createdAt
-                              ? formatJstDateTime(createdAt as string)
-                              : "作成日時なし"}
-                          </time>
-                        );
-                      })()}
-                      {(doc as Document).is_archived && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                          📦 アーカイブ
-                        </span>
-                      )}
-                      {doc.share_token ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                          🔗 共有中
-                        </span>
-                      ) : null}
-                      <div className="flex gap-1">
-                        <form action={togglePinned}>
-                          <input type="hidden" name="id" value={doc.id} />
-                          <input
-                            type="hidden"
-                            name="next"
-                            value={doc.is_pinned ? "false" : "true"}
-                          />
-                          <button
-                            type="submit"
-                            className={`rounded-full border px-2 text-[10px] ${
-                              doc.is_pinned
-                                ? "border-amber-400 bg-amber-50 text-amber-700"
-                                : "border-slate-200 bg-white text-slate-400"
-                            }`}
-                            aria-label={
-                              doc.is_pinned
-                                ? "ピン留めを解除"
-                                : "ピン留めする"
-                            }
-                          >
-                            📌
-                          </button>
-                        </form>
-                        <form action={toggleFavorite}>
-                          <input type="hidden" name="id" value={doc.id} />
-                          <input
-                            type="hidden"
-                            name="next"
-                            value={doc.is_favorite ? "false" : "true"}
-                          />
-                          <button
-                            type="submit"
-                            className={`rounded-full border px-2 text-[10px] ${
-                              doc.is_favorite
-                                ? "border-rose-400 bg-rose-50 text-rose-700"
-                                : "border-slate-200 bg-white text-slate-400"
-                            }`}
-                            aria-label={
-                              doc.is_favorite
-                                ? "お気に入りを解除"
-                                : "お気に入りに追加"
-                            }
-                          >
-                            ★
-                          </button>
-                        </form>
-                        <form action={deleteDocumentFromList}>
-                          <input type="hidden" name="id" value={doc.id} />
-                          <input type="hidden" name="title" value={doc.title} />
-                          <button
-                            type="submit"
-                            className="rounded-full border border-red-200 bg-white px-2 text-[10px] text-red-400 hover:bg-red-50"
-                            data-doc-delete-button
-                            aria-label="ドキュメントを削除"
-                          >
-                            🗑
-                          </button>
-                        </form>
-                      </div>
-                    </div>
+                          <span className="text-[9px] font-medium text-slate-700">
+                            {bucket.count}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  {doc.summary && (
-                    <p className="mb-3 line-clamp-4 text-xs leading-relaxed text-slate-700">
-                      {doc.summary}
-                    </p>
-                  )}
-
-                  {Array.isArray(doc.tags) && doc.tags.length > 0 && (
-                    <div className="mt-auto flex flex-wrap gap-1">
-                      {doc.tags.map((tag) => {
-                        const isActive =
-                          query &&
-                          tag.toLowerCase() === query.toLowerCase().trim();
-                        return (
-                          <Link
-                            key={tag}
-                            href={`/app?q=${encodeURIComponent(tag)}`}
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
-                              isActive
-                                ? "bg-emerald-50 text-emerald-700 ring-emerald-300"
-                                : "bg-slate-50 text-slate-600 ring-slate-200"
-                            }`}
-                          >
-                            {tag}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-                    <div className="flex items-center gap-2">
-                      {Array.isArray(doc.tags) && doc.tags.length > 0 && (
-                        <span className="inline-flex items-center gap-1">
-                          <span className="text-slate-400">🏷</span>
-                          <span>{doc.tags.length} 個のタグ</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1">
-                          <span className="text-slate-400">✍️</span>
-                          <span>
-                            {doc.raw_content
-                              ? `${doc.raw_content.length.toLocaleString("ja-JP")} 文字`
-                              : "0 文字"}
-                          </span>
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="text-slate-400">💬</span>
-                          <span>
-                            {(commentCountMap.get(doc.id) ?? 0).toLocaleString(
-                              "ja-JP"
-                            )}{" "}
-                            件
-                          </span>
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <form action={toggleArchivedFromList}>
-                          <input type="hidden" name="id" value={doc.id} />
-                          <input type="hidden" name="title" value={doc.title} />
-                          <input
-                            type="hidden"
-                            name="next"
-                            value={(doc as Document).is_archived ? "false" : "true"}
-                          />
-                          <button
-                            type="submit"
-                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                              (doc as Document).is_archived
-                                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                                : "border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            📦{" "}
-                            <span>
-                              {(doc as Document).is_archived ? "復元" : "アーカイブ"}
-                            </span>
-                          </button>
-                        </form>
-                        <form action={deleteDocumentFromList}>
-                          <input type="hidden" name="id" value={doc.id} />
-                          <input type="hidden" name="title" value={doc.title} />
-                          <button
-                            type="submit"
-                            className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-white px-2 py-0.5 text-[10px] font-medium text-red-500 hover:bg-red-50"
-                            data-doc-delete-button
-                          >
-                            🗑 <span>削除</span>
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                )}
+              </div>
             </div>
-          )}
-        </section>
+          </section>
 
-        {userId && (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">
-                最近のアクティビティ
+          {/* カテゴリ別トップ3（ミニグラフ風） */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-semibold text-slate-900">
+                カテゴリ別ドキュメント数（トップ3）
               </h2>
               <p className="text-[11px] text-slate-500">
-                直近 10 件の操作を表示します
+                カテゴリの偏りや使われ方の傾向をざっくり確認できます
               </p>
             </div>
-
-            {recentActivities.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-500">
-                まだアクティビティがありません。ドキュメントの作成・編集・共有などを行うとここに履歴が表示されます。
+            {categoryStats.length === 0 ? (
+              <p className="text-[11px] text-slate-500">
+                まだカテゴリが付いたドキュメントがありません。
               </p>
             ) : (
-              <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-                {recentActivities.map((log) => (
-                  <li
-                    key={log.id}
-                    className="flex items-center justify-between px-4 py-3 text-xs"
-                  >
-                    <div className="space-y-0.5">
-                      <p className="text-slate-800">
-                        {describeActivity(log)}
-                      </p>
-                      {log.document_title && (
-                        <p className="text-[11px] text-slate-500">
-                          {log.document_title}
-                        </p>
-                      )}
-                    </div>
-                    <time
-                      dateTime={log.created_at}
-                      className="shrink-0 text-[10px] text-slate-400"
-                    >
-                      {new Date(log.created_at).toLocaleString("ja-JP")}
-                    </time>
-                  </li>
-                ))}
+              <ul className="space-y-2">
+                {categoryStats.map(([cat, count]) => {
+                  const ratio =
+                    maxCategoryCount > 0
+                      ? Math.max(0, (count / maxCategoryCount) * 100)
+                      : 0;
+                  return (
+                    <li key={cat} className="flex items-center gap-2">
+                      <span className="w-20 truncate text-[11px] font-medium text-slate-700">
+                        {cat}
+                      </span>
+                      <div className="relative h-2 flex-1 rounded-full bg-slate-100">
+                        <div
+                          className="h-2 rounded-full bg-emerald-500"
+                          style={{ width: `${ratio}%` }}
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <span className="w-6 text-right text-[11px] text-slate-600">
+                        {count}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
-        )}
+
+          {/* ダッシュボード上からのドラッグ＆ドロップアップロード */}
+          <section>
+            <DragAndDropUpload
+              uploadAction={createDocumentFromFileOnDashboard}
+            />
+          </section>
+
+          {/* 検索フォーム */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+            <form className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+              <div className="flex-1">
+                <label
+                  htmlFor="q"
+                  className="mb-1 block text-xs font-medium text-slate-700"
+                >
+                  検索（タイトル・本文・タグ）
+                </label>
+                <input
+                  id="q"
+                  name="q"
+                  defaultValue={query}
+                  placeholder="例: プロジェクト計画, API 設計..."
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
+                />
+              </div>
+
+              <div className="min-w-[140px]">
+                <label
+                  htmlFor="category"
+                  className="mb-1 block text-xs font-medium text-slate-700"
+                >
+                  カテゴリ
+                </label>
+                <select
+                  id="category"
+                  name="category"
+                  defaultValue={category}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
+                >
+                  <option value="">すべて</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="min-w-[120px]">
+                <label
+                  htmlFor="sort"
+                  className="mb-1 block text-xs font-medium text-slate-700"
+                >
+                  並び順
+                </label>
+                <select
+                  id="sort"
+                  name="sort"
+                  defaultValue={sort}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
+                >
+                  <option value="desc">新しい順</option>
+                  <option value="asc">古い順</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col items-start gap-2">
+                <div className="flex gap-3 text-[11px] text-slate-700">
+                  <label className="inline-flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      name="onlyPinned"
+                      value="1"
+                      defaultChecked={onlyPinned}
+                      className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <span>ピンのみ</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      name="onlyFavorites"
+                      value="1"
+                      defaultChecked={onlyFavorites}
+                      className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <span>お気に入りのみ</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-400"
+                  >
+                    検索
+                  </button>
+                  <Link
+                    href="/new"
+                    className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+                  >
+                    新規作成
+                  </Link>
+                </div>
+              </div>
+            </form>
+
+            {/* クイックフィルタ */}
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              <span className="text-slate-500">クイックフィルタ:</span>
+              <Link
+                href="/app"
+                className={`inline-flex items-center rounded-full px-2 py-1 ${
+                  !query &&
+                  !category &&
+                  !onlyFavorites &&
+                  !onlyPinned &&
+                  !showArchived
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                すべて
+              </Link>
+              <Link
+                href="/app?onlyPinned=1"
+                className={`inline-flex items-center rounded-full px-2 py-1 ${
+                  onlyPinned
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                ピンだけ
+              </Link>
+              <Link
+                href="/app?onlyFavorites=1"
+                className={`inline-flex items-center rounded-full px-2 py-1 ${
+                  onlyFavorites
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                お気に入りだけ
+              </Link>
+              <Link
+                href="/app?archived=1"
+                className={`inline-flex items-center rounded-full px-2 py-1 ${
+                  showArchived
+                    ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                アーカイブ
+              </Link>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">
+                {showArchived
+                  ? "アーカイブされたドキュメント"
+                  : "あなたのドキュメント"}
+              </h2>
+              <div className="text-right text-xs text-slate-500">
+                <p>
+                  {sortedDocuments.length} 件
+                  {query ? `（検索ワード: "${query}"）` : ""}
+                </p>
+                {category && <p>カテゴリフィルタ: {category}</p>}
+                <p>並び順: {sort === "asc" ? "古い順" : "新しい順"}</p>
+                <form
+                  id="bulk-delete-form"
+                  action={deleteDocumentsBulk}
+                  className="mt-1 inline-flex items-center justify-end gap-2"
+                >
+                  <input
+                    type="hidden"
+                    name="mode"
+                    value={showArchived ? "restore" : "delete"}
+                  />
+                  {showArchived ? (
+                    <>
+                      <BulkRestoreButton formId="bulk-delete-form" />
+                      <span className="text-[10px] text-slate-400">
+                        「すべて選択」で表示中のアーカイブされたカードを一括選択して
+                        <span className="font-semibold"> 一括復元 </span>
+                        できます
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <BulkDeleteConfirmButton formId="bulk-delete-form" />
+                      <span className="text-[10px] text-slate-400">
+                        「すべて選択」で表示中のカードを一括選択して
+                        <span className="font-semibold"> すべて削除 </span>/
+                        カード上で{" "}
+                        <span className="font-semibold">Shift + D</span>{" "}
+                        でも削除できます
+                      </span>
+                    </>
+                  )}
+                </form>
+              </div>
+            </div>
+
+            {sortedDocuments.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
+                ドキュメントがまだありません。
+                <Link
+                  href="/new"
+                  className="ml-1 font-medium text-emerald-600 underline-offset-2 hover:underline"
+                >
+                  最初のドキュメントを作成しましょう。
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {sortedDocuments.map((doc) => (
+                  <article
+                    key={doc.id}
+                    data-doc-card
+                    className={`flex flex-col rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                      (doc as Document).is_archived
+                        ? "border-slate-200 bg-slate-50"
+                        : "border-slate-200 bg-white hover:border-emerald-500/60"
+                    }`}
+                  >
+                    {/* すべて削除用に、表示中ドキュメントの ID を hidden で送る */}
+                    <input
+                      type="hidden"
+                      name="allIds"
+                      value={doc.id}
+                      form="bulk-delete-form"
+                    />
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          name="ids"
+                          value={doc.id}
+                          form="bulk-delete-form"
+                          className="mt-1 h-3 w-3 rounded border-slate-300 text-rose-500 focus:ring-rose-500"
+                          aria-label={`${doc.title} を一括削除対象にする`}
+                        />
+                        <div className="space-y-1">
+                          <Link
+                            href={`/documents/${doc.id}`}
+                            className="line-clamp-2 text-sm font-semibold text-slate-900 hover:underline"
+                          >
+                            {doc.title}
+                          </Link>
+                          {doc.category && (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(
+                                doc.category,
+                              )}`}
+                            >
+                              {doc.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {(() => {
+                          const createdAt =
+                            documentCreatedAtMap.get(doc.id) ?? doc.created_at;
+                          return (
+                            <time
+                              dateTime={
+                                (createdAt as string | null) ?? undefined
+                              }
+                              className="shrink-0 text-[10px] text-slate-400"
+                            >
+                              {createdAt
+                                ? formatJstDateTime(createdAt as string)
+                                : "作成日時なし"}
+                            </time>
+                          );
+                        })()}
+                        {(doc as Document).is_archived && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                            📦 アーカイブ
+                          </span>
+                        )}
+                        {doc.share_token ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                            🔗 共有中
+                          </span>
+                        ) : null}
+                        <div className="flex gap-1">
+                          <form action={togglePinned}>
+                            <input type="hidden" name="id" value={doc.id} />
+                            <input
+                              type="hidden"
+                              name="next"
+                              value={doc.is_pinned ? "false" : "true"}
+                            />
+                            <button
+                              type="submit"
+                              className={`rounded-full border px-2 text-[10px] ${
+                                doc.is_pinned
+                                  ? "border-amber-400 bg-amber-50 text-amber-700"
+                                  : "border-slate-200 bg-white text-slate-400"
+                              }`}
+                              aria-label={
+                                doc.is_pinned
+                                  ? "ピン留めを解除"
+                                  : "ピン留めする"
+                              }
+                            >
+                              📌
+                            </button>
+                          </form>
+                          <form action={toggleFavorite}>
+                            <input type="hidden" name="id" value={doc.id} />
+                            <input
+                              type="hidden"
+                              name="next"
+                              value={doc.is_favorite ? "false" : "true"}
+                            />
+                            <button
+                              type="submit"
+                              className={`rounded-full border px-2 text-[10px] ${
+                                doc.is_favorite
+                                  ? "border-rose-400 bg-rose-50 text-rose-700"
+                                  : "border-slate-200 bg-white text-slate-400"
+                              }`}
+                              aria-label={
+                                doc.is_favorite
+                                  ? "お気に入りを解除"
+                                  : "お気に入りに追加"
+                              }
+                            >
+                              ★
+                            </button>
+                          </form>
+                          <form action={deleteDocumentFromList}>
+                            <input type="hidden" name="id" value={doc.id} />
+                            <input
+                              type="hidden"
+                              name="title"
+                              value={doc.title}
+                            />
+                            <button
+                              type="submit"
+                              className="rounded-full border border-red-200 bg-white px-2 text-[10px] text-red-400 hover:bg-red-50"
+                              data-doc-delete-button
+                              aria-label="ドキュメントを削除"
+                            >
+                              🗑
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+
+                    {doc.summary && (
+                      <p className="mb-3 line-clamp-4 text-xs leading-relaxed text-slate-700">
+                        {doc.summary}
+                      </p>
+                    )}
+
+                    {Array.isArray(doc.tags) && doc.tags.length > 0 && (
+                      <div className="mt-auto flex flex-wrap gap-1">
+                        {doc.tags.map((tag) => {
+                          const isActive =
+                            query &&
+                            tag.toLowerCase() === query.toLowerCase().trim();
+                          return (
+                            <Link
+                              key={tag}
+                              href={`/app?q=${encodeURIComponent(tag)}`}
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
+                                isActive
+                                  ? "bg-emerald-50 text-emerald-700 ring-emerald-300"
+                                  : "bg-slate-50 text-slate-600 ring-slate-200"
+                              }`}
+                            >
+                              {tag}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+                      <div className="flex items-center gap-2">
+                        {Array.isArray(doc.tags) && doc.tags.length > 0 && (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-slate-400">🏷</span>
+                            <span>{doc.tags.length} 個のタグ</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-slate-400">✍️</span>
+                            <span>
+                              {doc.raw_content
+                                ? `${doc.raw_content.length.toLocaleString("ja-JP")} 文字`
+                                : "0 文字"}
+                            </span>
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-slate-400">💬</span>
+                            <span>
+                              {(
+                                commentCountMap.get(doc.id) ?? 0
+                              ).toLocaleString("ja-JP")}{" "}
+                              件
+                            </span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <form action={toggleArchivedFromList}>
+                            <input type="hidden" name="id" value={doc.id} />
+                            <input
+                              type="hidden"
+                              name="title"
+                              value={doc.title}
+                            />
+                            <input
+                              type="hidden"
+                              name="next"
+                              value={
+                                (doc as Document).is_archived ? "false" : "true"
+                              }
+                            />
+                            <button
+                              type="submit"
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                                (doc as Document).is_archived
+                                  ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                                  : "border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              📦{" "}
+                              <span>
+                                {(doc as Document).is_archived
+                                  ? "復元"
+                                  : "アーカイブ"}
+                              </span>
+                            </button>
+                          </form>
+                          <form action={deleteDocumentFromList}>
+                            <input type="hidden" name="id" value={doc.id} />
+                            <input
+                              type="hidden"
+                              name="title"
+                              value={doc.title}
+                            />
+                            <button
+                              type="submit"
+                              className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-white px-2 py-0.5 text-[10px] font-medium text-red-500 hover:bg-red-50"
+                              data-doc-delete-button
+                            >
+                              🗑 <span>削除</span>
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {userId && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900">
+                  最近のアクティビティ
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  直近 10 件の操作を表示します
+                </p>
+              </div>
+
+              {recentActivities.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-500">
+                  まだアクティビティがありません。ドキュメントの作成・編集・共有などを行うとここに履歴が表示されます。
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                  {recentActivities.map((log) => (
+                    <li
+                      key={log.id}
+                      className="flex items-center justify-between px-4 py-3 text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <p className="text-slate-800">
+                          {describeActivity(log)}
+                        </p>
+                        {log.document_title && (
+                          <p className="text-[11px] text-slate-500">
+                            {log.document_title}
+                          </p>
+                        )}
+                      </div>
+                      <time
+                        dateTime={log.created_at}
+                        className="shrink-0 text-[10px] text-slate-400"
+                      >
+                        {new Date(log.created_at).toLocaleString("ja-JP")}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </main>
       </div>
     </div>
   );
 }
-
-

@@ -26,6 +26,3 @@ export function Logo({ withTagline = false, className = "" }: LogoProps) {
     </Link>
   );
 }
-
-
-

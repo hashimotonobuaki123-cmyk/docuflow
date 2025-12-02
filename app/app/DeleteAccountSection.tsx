@@ -21,7 +21,7 @@ export function DeleteAccountSection({ deleteAccount }: Props) {
       <form
         action={(formData) => {
           const ok = window.confirm(
-            "本当にアカウントを削除しますか？\nドキュメントと履歴はすべて削除され、元に戻せません。"
+            "本当にアカウントを削除しますか？\nドキュメントと履歴はすべて削除され、元に戻せません。",
           );
           if (!ok) return;
 
@@ -41,10 +41,3 @@ export function DeleteAccountSection({ deleteAccount }: Props) {
     </section>
   );
 }
-
-
-
-
-
-
-

@@ -42,7 +42,9 @@ export function NewFileDropZone({ inputId }: Props) {
     if (!file) return;
 
     if (!file.name.match(/\.(pdf|doc|docx)$/i)) {
-      setFileName("PDF / Word（.pdf / .doc / .docx）のみアップロードできます。");
+      setFileName(
+        "PDF / Word（.pdf / .doc / .docx）のみアップロードできます。",
+      );
       return;
     }
 
@@ -69,7 +71,7 @@ export function NewFileDropZone({ inputId }: Props) {
     const input = document.getElementById(inputId) as HTMLInputElement | null;
     if (input && !input.dataset._newFileDropZoneBound) {
       input.addEventListener("change", (e) =>
-        handleChange(e as unknown as React.ChangeEvent<HTMLInputElement>)
+        handleChange(e as unknown as React.ChangeEvent<HTMLInputElement>),
       );
       input.dataset._newFileDropZoneBound = "true";
     }
@@ -87,7 +89,9 @@ export function NewFileDropZone({ inputId }: Props) {
           : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/40"
       }`}
     >
-      <p className="font-medium">クリックしてファイルを選択 / ここにドラッグ＆ドロップ</p>
+      <p className="font-medium">
+        クリックしてファイルを選択 / ここにドラッグ＆ドロップ
+      </p>
       <p className="text-[10px] text-slate-500">
         PDF / Word（.pdf / .doc / .docx / 10MB まで）をアップロードできます。
       </p>
@@ -99,5 +103,3 @@ export function NewFileDropZone({ inputId }: Props) {
     </div>
   );
 }
-
-

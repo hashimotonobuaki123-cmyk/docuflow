@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { logActivity } from "@/lib/activityLog";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { Logo } from "@/components/Logo";
+import { RegenerateSummaryButton } from "@/components/RegenerateSummaryButton";
 
 // UTC の ISO 文字列を、日本時間 (UTC+9) の "YYYY/MM/DD HH:MM" に変換するヘルパー
 function formatJstDateTime(value: string | null): string | null {
@@ -40,6 +41,18 @@ type Comment = {
   created_at: string;
 };
 
+type DocumentVersion = {
+  id: string;
+  document_id: string;
+  user_id: string | null;
+  title: string;
+  category: string | null;
+  raw_content: string | null;
+  summary: string | null;
+  tags: string[] | null;
+  created_at: string;
+};
+
 async function deleteDocument(formData: FormData) {
   "use server";
 
@@ -60,6 +73,32 @@ async function deleteDocument(formData: FormData) {
   });
 
   redirect("/");
+}
+
+async function toggleArchived(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim() || null;
+  const next = String(formData.get("next") ?? "") === "true";
+  if (!id) return;
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ is_archived: next })
+    .eq("id", id);
+
+  if (error) {
+    console.error("toggleArchived error:", error);
+    throw new Error("Failed to toggle archived.");
+  }
+
+  await logActivity(next ? "archive_document" : "restore_document", {
+    documentId: id,
+    documentTitle: title,
+  });
+
+  revalidatePath(`/documents/${id}`);
 }
 
 async function enableShare(formData: FormData) {
@@ -212,6 +251,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     summary: string | null;
     tags: string[] | null;
     created_at: string;
+    is_archived?: boolean | null;
     share_token?: string | null;
   };
 
@@ -249,6 +289,18 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   }
 
   const comments = (commentsData ?? []) as Comment[];
+
+  const { data: versionsData, error: versionsError } = await supabase
+    .from("document_versions")
+    .select("*")
+    .eq("document_id", id)
+    .order("created_at", { ascending: false });
+
+  if (versionsError) {
+    console.error("Failed to fetch document_versions:", versionsError);
+  }
+
+  const versions = (versionsData ?? []) as DocumentVersion[];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -295,6 +347,11 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   >
                     {createdAtDisplay ?? "作成日時なし"}
                   </time>
+                  {doc.is_archived && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                      📦 アーカイブ済み
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -314,6 +371,29 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   <p className="text-[10px] text-slate-400">
                     削除すると元に戻せません
                   </p>
+                </form>
+
+                <form
+                  action={toggleArchived}
+                  className="flex flex-col items-end gap-1"
+                >
+                  <input type="hidden" name="id" value={doc.id} />
+                  <input type="hidden" name="title" value={doc.title} />
+                  <input
+                    type="hidden"
+                    name="next"
+                    value={doc.is_archived ? "false" : "true"}
+                  />
+                  <button
+                    type="submit"
+                    className={`rounded-md border px-3 py-1 text-xs font-medium transition ${
+                      doc.is_archived
+                        ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    📦 {doc.is_archived ? "アーカイブを解除" : "アーカイブ"}
+                  </button>
                 </form>
 
                 <div className="flex flex-col items-end gap-1 text-[11px] text-slate-600">
@@ -364,7 +444,8 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                 </p>
                 {doc.category && (
                   <p className="mt-1">
-                    カテゴリ: <span className="font-medium">{doc.category}</span>
+                    カテゴリ:{" "}
+                    <span className="font-medium">{doc.category}</span>
                   </p>
                 )}
               </div>
@@ -432,12 +513,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                 </div>
                 <form action={regenerateSummary}>
                   <input type="hidden" name="id" value={doc.id} />
-                  <button
-                    type="submit"
-                    className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
-                  >
-                    要約を再生成
-                  </button>
+                  <RegenerateSummaryButton />
                 </form>
               </div>
               <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800">
@@ -462,7 +538,8 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             <h3 className="text-xs font-semibold text-slate-700">コメント</h3>
             {comments.length === 0 ? (
               <p className="text-[11px] text-slate-500">
-                まだコメントはありません。気づきや TODO をメモしておくのに使えます。
+                まだコメントはありません。気づきや TODO
+                をメモしておくのに使えます。
               </p>
             ) : (
               <ul className="space-y-2">
@@ -503,10 +580,43 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               </div>
             </form>
           </section>
+
+          {/* バージョン履歴（簡易） */}
+          {versions.length > 0 && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-slate-700">
+                バージョン履歴
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                編集保存のたびに、変更前の内容を履歴として保存しています。クリックすると詳細・比較画面を開きます。
+              </p>
+              <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 bg-slate-50">
+                {versions.map((v) => (
+                  <li
+                    key={v.id}
+                    className="flex items-center justify-between px-3 py-2 text-[11px]"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium text-slate-800">
+                        {v.title || "（タイトルなし）"}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {formatJstDateTime(v.created_at) ?? v.created_at}
+                      </span>
+                    </div>
+                    <Link
+                      href={`/documents/${doc.id}/versions/${v.id}`}
+                      className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[10px] font-medium text-slate-700 hover:bg-slate-100"
+                    >
+                      比較表示
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </article>
       </main>
     </div>
   );
 }
-
-

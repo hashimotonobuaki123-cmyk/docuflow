@@ -37,7 +37,7 @@ export default function SignupPage() {
         msg.includes("User already registered")
       ) {
         setStatus(
-          "このメールアドレスは既に登録済みか、短時間にリクエストしすぎています。ログインを試してください。"
+          "このメールアドレスは既に登録済みか、短時間にリクエストしすぎています。ログインを試してください。",
         );
       } else {
         setError(msg);
@@ -46,7 +46,7 @@ export default function SignupPage() {
     }
 
     setStatus(
-      "サインアップしました。メールが届いている場合は、確認リンクもチェックしてください。"
+      "サインアップしました。メールが届いている場合は、確認リンクもチェックしてください。",
     );
   };
 
@@ -141,5 +141,3 @@ export default function SignupPage() {
     </div>
   );
 }
-
-

@@ -157,5 +157,3 @@ ${rawContent}
 
   return category || "未分類";
 }
-
-

@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     }
 
     setStatus(
-      "パスワード再設定用のメールを送信しました。メール内のリンクから新しいパスワードを設定してください。"
+      "パスワード再設定用のメールを送信しました。メール内のリンクから新しいパスワードを設定してください。",
     );
   };
 
@@ -46,7 +46,9 @@ export default function ForgotPasswordPage() {
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <Logo />
-            <p className="text-[11px] text-slate-500">パスワードをお忘れですか？</p>
+            <p className="text-[11px] text-slate-500">
+              パスワードをお忘れですか？
+            </p>
           </div>
           <Link
             href="/auth/login"
@@ -112,5 +114,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-
-

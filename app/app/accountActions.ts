@@ -12,7 +12,7 @@ export async function deleteAccount() {
 
   if (!supabaseAdmin) {
     console.warn(
-      "[deleteAccount] supabaseAdmin が未設定のため、アカウント削除は無効です。SUPABASE_SERVICE_ROLE_KEY を .env.local に設定してください。"
+      "[deleteAccount] supabaseAdmin が未設定のため、アカウント削除は無効です。SUPABASE_SERVICE_ROLE_KEY を .env.local に設定してください。",
     );
     return;
   }
@@ -24,6 +24,3 @@ export async function deleteAccount() {
 
   redirect("/auth/logout?accountDeleted=1");
 }
-
-
-

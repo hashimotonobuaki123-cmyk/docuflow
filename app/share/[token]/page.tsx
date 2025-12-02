@@ -15,7 +15,7 @@ export default async function PublicSharePage({ params }: PageProps) {
   const { data, error } = await supabase
     .from("documents")
     .select(
-      "id, title, category, raw_content, summary, tags, created_at, share_expires_at"
+      "id, title, category, raw_content, summary, tags, created_at, share_expires_at",
     )
     .eq("share_token", token)
     .single();
@@ -133,8 +133,3 @@ export default async function PublicSharePage({ params }: PageProps) {
     </div>
   );
 }
-
-
-
-
-

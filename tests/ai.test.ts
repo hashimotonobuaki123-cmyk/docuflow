@@ -40,10 +40,12 @@ vi.mock("openai", () => {
 });
 
 // モックにレスポンスを積むヘルパー
-function enqueueResponse(response: { choices?: { message?: { content?: string | null } | null }[] }) {
-  (OpenAIModule as unknown as { enqueueResponse: (r: typeof response) => void }).enqueueResponse(
-    response
-  );
+function enqueueResponse(response: {
+  choices?: { message?: { content?: string | null } | null }[];
+}) {
+  (
+    OpenAIModule as unknown as { enqueueResponse: (r: typeof response) => void }
+  ).enqueueResponse(response);
 }
 
 describe("lib/ai", () => {
@@ -181,4 +183,3 @@ describe("lib/ai", () => {
     });
   });
 });
-

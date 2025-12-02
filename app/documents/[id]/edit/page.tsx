@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { logActivity } from "@/lib/activityLog";
@@ -19,6 +20,45 @@ async function updateDocument(formData: FormData) {
 
   if (!id || !title || !rawContent) {
     return;
+  }
+
+  // 変更前の内容を document_versions に保存してから本体を更新する
+  try {
+    const cookieStore = await cookies();
+    const cookieUserId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+
+    const { data: current, error: currentError } = await supabase
+      .from("documents")
+      .select("id, user_id, title, category, raw_content, summary, tags")
+      .eq("id", id)
+      .single();
+
+    if (!currentError && current) {
+      const currentDoc = current as {
+        id: string;
+        user_id: string | null;
+        title: string;
+        category: string | null;
+        raw_content: string | null;
+        summary: string | null;
+        tags: string[] | null;
+      };
+
+      const versionUserId = cookieUserId ?? currentDoc.user_id;
+
+      await supabase.from("document_versions").insert({
+        document_id: currentDoc.id,
+        user_id: versionUserId,
+        title: currentDoc.title,
+        category: currentDoc.category,
+        raw_content: currentDoc.raw_content,
+        summary: currentDoc.summary,
+        tags: currentDoc.tags,
+      });
+    }
+  } catch (e) {
+    // バージョン保存に失敗しても本体更新は続行する
+    console.error("Failed to insert document_versions:", e);
   }
 
   const { summary, tags } = await generateSummaryAndTags(rawContent);
@@ -157,5 +197,3 @@ export default async function EditDocumentPage({ params }: PageProps) {
     </div>
   );
 }
-
-

@@ -6,7 +6,7 @@ type Props = {
   formId: string;
 };
 
-export function BulkDeleteConfirmButton({ formId }: Props) {
+export function BulkRestoreButton({ formId }: Props) {
   const [open, setOpen] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
 
@@ -32,9 +32,9 @@ export function BulkDeleteConfirmButton({ formId }: Props) {
       if (!card) return;
 
       card.classList.toggle("ring-2", next);
-      card.classList.toggle("ring-rose-300", next);
-      card.classList.toggle("border-rose-300", next);
-      card.classList.toggle("bg-rose-50/40", next);
+      card.classList.toggle("ring-emerald-300", next);
+      card.classList.toggle("border-emerald-300", next);
+      card.classList.toggle("bg-emerald-50/40", next);
     });
     setSelectAll(next);
   };
@@ -64,19 +64,19 @@ export function BulkDeleteConfirmButton({ formId }: Props) {
       <button
         type="button"
         onClick={handleOpen}
-        className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-white px-3 py-1 text-[10px] font-medium text-red-500 hover:bg-red-50"
+        className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50"
       >
-        🗑 すべて削除
+        ♻ 一括復元
       </button>
 
       {open && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
           <div className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-lg">
             <p className="text-xs font-semibold text-slate-900">
-              表示中のドキュメント（選択中のものを含む）を削除しますか？
+              アーカイブされたドキュメント（選択中のものを含む）を一括で復元しますか？
             </p>
             <p className="mt-2 text-[11px] text-slate-500">
-              この操作は元に戻せません。よろしければ「はい、削除する」を押してください。
+              復元すると、通常の一覧（アクティブなドキュメント）に戻ります。
             </p>
             <div className="mt-4 flex justify-end gap-2 text-[11px]">
               <button
@@ -84,14 +84,14 @@ export function BulkDeleteConfirmButton({ formId }: Props) {
                 onClick={handleCancel}
                 className="rounded-full border border-slate-300 bg-white px-3 py-1 text-slate-600 hover:bg-slate-50"
               >
-                いいえ
+                やめる
               </button>
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="rounded-full bg-red-500 px-3 py-1 font-semibold text-white hover:bg-red-600"
+                className="rounded-full bg-emerald-500 px-3 py-1 font-semibold text-white hover:bg-emerald-600"
               >
-                はい、削除する
+                はい、復元する
               </button>
             </div>
           </div>

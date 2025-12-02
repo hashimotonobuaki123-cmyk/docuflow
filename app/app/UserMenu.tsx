@@ -34,9 +34,7 @@ export function UserMenu() {
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-44 rounded-lg border border-slate-200 bg-white py-2 text-sm text-slate-800 shadow-lg">
-          <div className="px-3 pb-2 text-[11px] text-slate-500">
-            アカウント
-          </div>
+          <div className="px-3 pb-2 text-[11px] text-slate-500">アカウント</div>
           <Link
             href="/settings"
             className="block px-3 py-1.5 text-[13px] hover:bg-slate-50"
@@ -59,5 +57,3 @@ export function UserMenu() {
     </div>
   );
 }
-
-

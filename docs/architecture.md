@@ -91,9 +91,9 @@
 ### 6. テスト戦略（簡易）
 
 - **ユニットテスト（Vitest）**
-  - `lib/ai.ts`  
+  - `lib/ai.ts`
     - OpenAI クライアントをモックし、プロンプトが返す JSON のパース / フォールバック要約 / デフォルトタイトル / デフォルトカテゴリの挙動を確認。
-  - `app/app/page.tsx` の `filterDocuments`  
+  - `app/app/page.tsx` の `filterDocuments`
     - タイトル / 要約 / 本文 / タグを対象としたフルテキスト検索、お気に入り・ピン留め・カテゴリフィルタの組み合わせを検証。
 - **カバレッジ**
   - `vitest.config.ts` で `coverage` を有効化し、`npm run test:coverage` でレポートを出力。
