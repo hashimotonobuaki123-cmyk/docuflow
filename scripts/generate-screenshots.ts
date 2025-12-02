@@ -29,7 +29,7 @@ async function generateScreenshots() {
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
+    viewport: { width: 1920, height: 1080 }, // より大きなビューポートで高品質なスクリーンショット
   });
   const page = await context.newPage();
 
@@ -37,6 +37,9 @@ async function generateScreenshots() {
     // 1. ログインページ
     console.log('📸 ログインページを撮影中...');
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle' });
+    // フォームが表示されるまで待機
+    await page.waitForSelector('input[type="email"]', { state: 'visible' });
+    await page.waitForTimeout(500); // レンダリング完了を待つ
     await page.screenshot({
       path: join(SCREENSHOT_DIR, 'login.png'),
       fullPage: true,
@@ -46,37 +49,14 @@ async function generateScreenshots() {
     // 2. サインアップページ
     console.log('📸 サインアップページを撮影中...');
     await page.goto(`${BASE_URL}/auth/signup`, { waitUntil: 'networkidle' });
+    // フォームが表示されるまで待機
+    await page.waitForSelector('input[type="email"]', { state: 'visible' });
+    await page.waitForTimeout(500);
     await page.screenshot({
       path: join(SCREENSHOT_DIR, 'signup.png'),
       fullPage: true,
     });
     console.log('✅ signup.png を保存しました');
-
-    // 3. 新規作成ページ（ログインが必要な場合はスキップ）
-    console.log('📸 新規作成ページを撮影中...');
-    try {
-      await page.goto(`${BASE_URL}/new`, { waitUntil: 'networkidle', timeout: 5000 });
-      await page.screenshot({
-        path: join(SCREENSHOT_DIR, 'new-document.png'),
-        fullPage: true,
-      });
-      console.log('✅ new-document.png を保存しました');
-    } catch (e) {
-      console.log('⚠️  新規作成ページはログインが必要なためスキップしました');
-    }
-
-    // 4. 設定ページ（ログインが必要な場合はスキップ）
-    console.log('📸 設定ページを撮影中...');
-    try {
-      await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle', timeout: 5000 });
-      await page.screenshot({
-        path: join(SCREENSHOT_DIR, 'settings.png'),
-        fullPage: true,
-      });
-      console.log('✅ settings.png を保存しました');
-    } catch (e) {
-      console.log('⚠️  設定ページはログインが必要なためスキップしました');
-    }
 
     // 5. ログインが必要なページの撮影
     if (SCREENSHOT_EMAIL && SCREENSHOT_PASSWORD) {
@@ -91,20 +71,59 @@ async function generateScreenshots() {
       await page.waitForURL(`${BASE_URL}/app`, { timeout: 10000 });
       console.log('✅ ログイン成功');
 
+      // 3. 新規作成ページ（ログイン後に撮影）
+      console.log('📸 新規作成ページを撮影中...');
+      await page.goto(`${BASE_URL}/new`, { waitUntil: 'networkidle' });
+      // フォームが表示されるまで待機
+      await page.waitForSelector('input[name="title"], textarea[name="rawContent"]', { state: 'visible', timeout: 10000 });
+      await page.waitForTimeout(1500); // レンダリング完了を待つ
+      // ページの先頭にスクロール
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+      await page.screenshot({
+        path: join(SCREENSHOT_DIR, 'new-document.png'),
+        fullPage: true,
+      });
+      console.log('✅ new-document.png を保存しました');
+
+      // 4. 設定ページ（ログイン後に撮影）
+      console.log('📸 設定ページを撮影中...');
+      await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+      // 設定セクションが表示されるまで待機
+      await page.waitForSelector('section, h2', { state: 'visible', timeout: 10000 });
+      await page.waitForTimeout(1500);
+      // ページの先頭にスクロール
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+      await page.screenshot({
+        path: join(SCREENSHOT_DIR, 'settings.png'),
+        fullPage: true,
+      });
+      console.log('✅ settings.png を保存しました');
+
       // ダッシュボードから最初のドキュメントを取得
+      console.log('📸 ダッシュボードを読み込み中...');
       await page.goto(`${BASE_URL}/app`, { waitUntil: 'networkidle' });
+      // ドキュメントカードまたはメインコンテンツが表示されるまで待機
+      await page.waitForSelector('main, article, a[href^="/documents/"]', { state: 'visible', timeout: 10000 });
       await page.waitForTimeout(2000); // データ読み込み待機
 
       // ドキュメント詳細ページを撮影
       console.log('📸 ドキュメント詳細ページを撮影中...');
       try {
         // 最初のドキュメントカードのリンクを探す
-        const firstDocLink = await page.locator('a[href^="/documents/"]').first();
+        const firstDocLink = page.locator('a[href^="/documents/"]').first();
+        await firstDocLink.waitFor({ state: 'visible', timeout: 5000 });
         const docHref = await firstDocLink.getAttribute('href');
         
         if (docHref) {
           await page.goto(`${BASE_URL}${docHref}`, { waitUntil: 'networkidle' });
-          await page.waitForTimeout(1000);
+          // ドキュメントのタイトルや本文が表示されるまで待機
+          await page.waitForSelector('h1, h2, article, main', { state: 'visible', timeout: 10000 });
+          await page.waitForTimeout(1500); // レンダリング完了を待つ
+          // ページの先頭にスクロール
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.waitForTimeout(500);
           await page.screenshot({
             path: join(SCREENSHOT_DIR, 'document-detail.png'),
             fullPage: true,
@@ -156,7 +175,12 @@ async function generateScreenshots() {
                   console.log(`🔗 共有トークンを見つけました: ${shareToken}`);
                   
                   await page.goto(`${BASE_URL}/share/${shareToken}`, { waitUntil: 'networkidle' });
-                  await page.waitForTimeout(1000);
+                  // 共有ビューのコンテンツが表示されるまで待機
+                  await page.waitForSelector('article, main, h1, h2', { state: 'visible', timeout: 10000 });
+                  await page.waitForTimeout(1500);
+                  // ページの先頭にスクロール
+                  await page.evaluate(() => window.scrollTo(0, 0));
+                  await page.waitForTimeout(500);
                   await page.screenshot({
                     path: join(SCREENSHOT_DIR, 'share-view.png'),
                     fullPage: true,
@@ -189,7 +213,12 @@ async function generateScreenshots() {
                 const shareToken = existingShareToken[1];
                 console.log(`🔗 既存の共有トークンを見つけました: ${shareToken}`);
                 await page.goto(`${BASE_URL}/share/${shareToken}`, { waitUntil: 'networkidle' });
-                await page.waitForTimeout(1000);
+                // 共有ビューのコンテンツが表示されるまで待機
+                await page.waitForSelector('article, main, h1, h2', { state: 'visible', timeout: 10000 });
+                await page.waitForTimeout(1500);
+                // ページの先頭にスクロール
+                await page.evaluate(() => window.scrollTo(0, 0));
+                await page.waitForTimeout(500);
                 await page.screenshot({
                   path: join(SCREENSHOT_DIR, 'share-view.png'),
                   fullPage: true,
