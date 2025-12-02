@@ -1,6 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
-import { getSupabasePublicEnv } from "./config";
 
-const { url, anonKey } = getSupabasePublicEnv();
+// クライアントサイドでは process.env が Next.js のビルド時に置き換えられる
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabaseBrowser = createClient(url, anonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.",
+  );
+}
+
+export const supabaseBrowser = createClient(supabaseUrl, supabaseAnonKey);
