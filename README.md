@@ -321,6 +321,12 @@ npm start
 
 # スクリーンショット自動生成（本番環境から）
 BASE_URL=https://docuflow-azure.vercel.app npm run screenshots
+
+# ログインが必要なページも自動生成（環境変数でログイン情報を指定）
+BASE_URL=https://docuflow-azure.vercel.app \
+SCREENSHOT_EMAIL=your-email@example.com \
+SCREENSHOT_PASSWORD=your-password \
+npm run screenshots
 ```
 
 ```bash
@@ -390,10 +396,12 @@ GitHub 上で見たときに UI の雰囲気が一目で伝わるよう、`docs/
 | ファイル名 | 説明 | 撮影する画面 |
 |-----------|------|------------|
 | `dashboard.png` | ✅ 既存 | `/app` ダッシュボード画面 |
-| `new-document.png` | ❌ 要追加 | `/new` 新規ドキュメント作成画面 |
-| `document-detail.png` | ❌ 要追加 | `/documents/[id]` ドキュメント詳細画面 |
-| `settings.png` | ❌ 要追加 | `/settings` 設定画面（AI設定・共有リンク設定・ダッシュボード設定が表示されている状態） |
-| `share-view.png` | ❌ 要追加 | `/share/[token]` 共有リンク閲覧画面 |
+| `login.png` | ✅ 既存 | `/auth/login` ログインページ |
+| `signup.png` | ✅ 既存 | `/auth/signup` サインアップページ |
+| `new-document.png` | ✅ 既存 | `/new` 新規ドキュメント作成画面 |
+| `settings.png` | ✅ 既存 | `/settings` 設定画面（AI設定・共有リンク設定・ダッシュボード設定が表示されている状態） |
+| `document-detail.png` | ✅ 既存 | `/documents/[id]` ドキュメント詳細画面 |
+| `share-view.png` | ✅ 既存 | `/share/[token]` 共有リンク閲覧画面 |
 
 **撮影手順**:
 1. ローカル開発サーバー（`npm run dev`）または本番環境で各画面を開く
