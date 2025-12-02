@@ -12,6 +12,7 @@ import { Logo } from "@/components/Logo";
 import { NewSubmitButtons } from "@/components/NewSubmitButtons";
 import { NewFileDropZone } from "@/components/NewFileDropZone";
 import { extractTextFromFile } from "@/lib/fileTextExtractor";
+import { getAISettingsForUser } from "@/lib/userSettings";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -196,7 +197,11 @@ async function createDocument(formData: FormData) {
   redirect("/");
 }
 
-export default function NewDocumentPage() {
+export default async function NewDocumentPage() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  const aiSettings = await getAISettingsForUser(userId);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
@@ -313,6 +318,7 @@ export default function NewDocumentPage() {
                   <NewSubmitButtons
                     fastAction={fastCreateDocument}
                     aiAction={createDocument}
+                    defaultMode={aiSettings.autoSummaryOnNew ? "ai" : "fast"}
                   />
                 </div>
               </div>

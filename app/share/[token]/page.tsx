@@ -48,6 +48,19 @@ export default async function PublicSharePage({ params }: PageProps) {
     created_at: string;
   };
 
+  // 匿名アクセスとして共有リンク閲覧を activity_logs に記録（失敗しても画面表示は継続）
+  try {
+    await supabase.from("activity_logs").insert({
+      user_id: null,
+      document_id: doc.id,
+      document_title: doc.title,
+      action: "view_share",
+      metadata: null,
+    });
+  } catch (e) {
+    console.error("Failed to log share view:", e);
+  }
+
   const tags = Array.isArray(doc.tags) ? doc.tags : [];
 
   return (

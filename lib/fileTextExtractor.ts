@@ -27,5 +27,3 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
   throw new Error(UNSUPPORTED_ERROR_MESSAGE);
 }
-
-

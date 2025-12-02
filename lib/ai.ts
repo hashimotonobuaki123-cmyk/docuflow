@@ -1,13 +1,18 @@
 import OpenAI from "openai";
+import { getOpenAIKey } from "./config";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    const apiKey = getOpenAIKey();
+    openai = new OpenAI({ apiKey });
+  }
+  return openai;
+}
 
 export async function generateSummaryAndTags(rawContent: string) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
-  }
+  const client = getOpenAIClient();
 
   const prompt = `
 あなたは日本語のドキュメントを整理するアシスタントです。
@@ -24,7 +29,7 @@ ${rawContent}
 ---
 `.trim();
 
-  const response = await openai.chat.completions.create({
+  const response = await client.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
       {
@@ -53,7 +58,7 @@ ${rawContent}
       tags: parsed.tags ?? [],
     };
   } catch {
-    const fallback = await openai.chat.completions.create({
+    const fallback = await client.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
         {
@@ -75,9 +80,7 @@ ${rawContent}
 }
 
 export async function generateTitleFromContent(rawContent: string) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
-  }
+  const client = getOpenAIClient();
 
   const prompt = `
 あなたは日本語のドキュメントのタイトルを考えるアシスタントです。
@@ -93,7 +96,7 @@ ${rawContent}
 ---
 `.trim();
 
-  const response = await openai.chat.completions.create({
+  const response = await client.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
       {
@@ -118,9 +121,7 @@ ${rawContent}
 }
 
 export async function generateCategoryFromContent(rawContent: string) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
-  }
+  const client = getOpenAIClient();
 
   const prompt = `
 あなたは日本語のドキュメントを「カテゴリ名」に分類するアシスタントです。
@@ -136,7 +137,7 @@ ${rawContent}
 ---
 `.trim();
 
-  const response = await openai.chat.completions.create({
+  const response = await client.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
       {

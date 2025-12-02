@@ -12,10 +12,13 @@ import { extractTextFromFile } from "@/lib/fileTextExtractor";
 import { Logo } from "@/components/Logo";
 import { UserMenu } from "./UserMenu";
 import { DocumentCardShortcuts } from "./DocumentCardShortcuts";
+import { SearchShortcuts } from "./SearchShortcuts";
+import { ShortcutHelp } from "./ShortcutHelp";
 import { BulkDeleteConfirmButton } from "./BulkDeleteConfirmButton";
 import { BulkRestoreButton } from "./BulkRestoreButton";
 import { DragAndDropUpload } from "./DragAndDropUpload";
 import { filterDocuments } from "@/lib/filterDocuments";
+import { getDashboardSettingsForUser, getAISettingsForUser } from "@/lib/userSettings";
 
 // UTC の ISO 文字列を、日本時間 (UTC+9) の "YYYY/MM/DD HH:MM" に変換するヘルパー
 function formatJstDateTime(value: string | null): string | null {
@@ -316,6 +319,8 @@ export async function createDocumentFromFileOnDashboard(formData: FormData) {
     );
   }
 
+  const aiSettings = await getAISettingsForUser(userId);
+
   // 複数ファイル対応: "files" に複数入っていればそれを優先し、なければ従来の "file" 1件のみ扱う
   const filesFromForm = formData
     .getAll("files")
@@ -361,11 +366,13 @@ export async function createDocumentFromFileOnDashboard(formData: FormData) {
       continue;
     }
 
+    const baseTitle =
+      file.name.replace(/\.(pdf|docx?|PDF|DOCX?)$/, "") || file.name;
+    const titleFromContent = content ? content.slice(0, 30) : "";
+    const fallbackTitle = titleFromContent || baseTitle || "無題ドキュメント";
+
     // ファイルからテキストが取れなかった場合でも、「空の本文＋注意書き付きカード」を作る
     if (!content) {
-      const baseTitle =
-        file.name.replace(/\.(pdf|docx?|PDF|DOCX?)$/, "") || file.name;
-      const fallbackTitle = baseTitle || "無題ドキュメント";
       const fallbackSummary =
         "このファイルからテキストを抽出できませんでした。";
 
@@ -408,19 +415,62 @@ export async function createDocumentFromFileOnDashboard(formData: FormData) {
       continue;
     }
 
+    // 設定で「アップロード時に AI を使わない」が選ばれている場合は、
+    // AI なしでシンプルなカードだけを作成する
+    if (!aiSettings.autoSummaryOnUpload) {
+      const { data, error } = await supabase
+        .from("documents")
+        .insert({
+          user_id: userId,
+          title: fallbackTitle,
+          category: "未分類",
+          raw_content: content,
+          summary: null,
+          tags: [],
+          is_favorite: false,
+          is_pinned: false,
+          is_archived: false,
+        })
+        .select("id");
+
+      if (error) {
+        console.error(
+          "Supabase insert error (createDocumentFromFileOnDashboard, no AI):",
+          error,
+        );
+        lastError = new Error(
+          `ドキュメントの保存に失敗しました: ${error.message ?? "原因不明のエラー"}`,
+        );
+        continue;
+      }
+
+      const created = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      if (created?.id) {
+        await logActivity("create_document", {
+          documentId: String(created.id),
+          documentTitle: fallbackTitle,
+        });
+        createdCount += 1;
+      }
+
+      continue;
+    }
+
     let title = "";
     let category = "";
     let summary = "";
     let tags: string[] = [];
 
     try {
-      const [generatedTitle, generatedCategory, generated] = await Promise.all([
-        generateTitleFromContent(content),
-        generateCategoryFromContent(content),
-        generateSummaryAndTags(content),
-      ]);
+      const [generatedTitle, generatedCategory, generated] = await Promise.all(
+        [
+          generateTitleFromContent(content),
+          generateCategoryFromContent(content),
+          generateSummaryAndTags(content),
+        ],
+      );
 
-      title = generatedTitle || content.slice(0, 30) || "無題ドキュメント";
+      title = generatedTitle || fallbackTitle;
       category = generatedCategory || "未分類" || "未分類";
       summary = generated.summary;
       tags = generated.tags;
@@ -501,6 +551,9 @@ type DashboardProps = {
     onlyFavorites?: string;
     onlyPinned?: string;
     archived?: string;
+    from?: string;
+    to?: string;
+    sharedOnly?: string;
   }>;
 };
 
@@ -531,15 +584,33 @@ function describeActivity(log: ActivityLog): string {
 
 export default async function Dashboard({ searchParams }: DashboardProps) {
   const params = await searchParams;
-  const query = params?.q ?? "";
-  const category = params?.category ?? "";
-  const sort = params?.sort === "asc" ? "asc" : "desc";
-  const onlyFavorites = params?.onlyFavorites === "1";
-  const onlyPinned = params?.onlyPinned === "1";
-  const showArchived = params?.archived === "1";
-
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+
+  // ユーザーのダッシュボード設定を取得
+  const dashboardSettings = await getDashboardSettingsForUser(userId);
+
+  // URLパラメータがない場合は、ユーザーの設定をデフォルトとして使用
+  const query = params?.q ?? "";
+  const category = params?.category ?? "";
+  const sortParam = params?.sort;
+  const sort = sortParam
+    ? sortParam === "asc"
+      ? "asc"
+      : sortParam === "pinned"
+        ? "pinned"
+        : "desc"
+    : dashboardSettings.defaultSort;
+  const onlyFavorites = params?.onlyFavorites === "1";
+  const onlyPinned = params?.onlyPinned === "1";
+  const showArchived = params?.archived !== undefined
+    ? params?.archived === "1"
+    : dashboardSettings.defaultShowArchived;
+  const fromDate = params?.from ?? "";
+  const toDate = params?.to ?? "";
+  const sharedOnly = params?.sharedOnly !== undefined
+    ? params?.sharedOnly === "1"
+    : dashboardSettings.defaultSharedOnly;
 
   let documentsQuery = supabase
     .from("documents")
@@ -577,15 +648,55 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
     onlyPinned,
   );
 
-  const sortedDocuments = [...documents].sort((a, b) => {
-    if (a.is_pinned !== b.is_pinned) {
-      return a.is_pinned ? -1 : 1;
+  // 日付レンジ・共有中フィルタを適用
+  let filteredDocuments = documents;
+
+  if (fromDate || toDate) {
+    const from = fromDate ? new Date(fromDate) : null;
+    const to = toDate ? new Date(toDate) : null;
+
+    const fromTime =
+      from && !Number.isNaN(from.getTime()) ? from.getTime() : null;
+    const toTime =
+      to && !Number.isNaN(to.getTime())
+        ? to.getTime() + 24 * 60 * 60 * 1000 - 1
+        : null;
+
+    filteredDocuments = filteredDocuments.filter((doc) => {
+      const t = new Date(doc.created_at as string).getTime();
+      if (Number.isNaN(t)) return false;
+      if (fromTime !== null && t < fromTime) return false;
+      if (toTime !== null && t > toTime) return false;
+      return true;
+    });
+  }
+
+  if (sharedOnly) {
+    filteredDocuments = filteredDocuments.filter((doc) => !!doc.share_token);
+  }
+
+  // ピン留め優先の場合は、設定から取得した値を使用
+  const effectiveSort = sortParam === "pinned" || (!sortParam && dashboardSettings.defaultSort === "pinned")
+    ? "pinned"
+    : sort;
+
+  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
+    // ピン留め優先の場合は、ピン留めされたドキュメントを常に先に表示
+    if (effectiveSort === "pinned") {
+      if (a.is_pinned !== b.is_pinned) {
+        return a.is_pinned ? -1 : 1;
+      }
+    } else {
+      // 通常のソートでも、ピン留めされたドキュメントは先に表示
+      if (a.is_pinned !== b.is_pinned) {
+        return a.is_pinned ? -1 : 1;
+      }
     }
 
     const aTime = new Date(a.created_at as string).getTime();
     const bTime = new Date(b.created_at as string).getTime();
 
-    return sort === "asc" ? aTime - bTime : bTime - aTime;
+    return effectiveSort === "asc" ? aTime - bTime : bTime - aTime;
   });
 
   let recentActivities: ActivityLog[] = [];
@@ -640,6 +751,23 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
     weeklyCounts.length > 0
       ? weeklyCounts.reduce((m, b) => Math.max(m, b.count), 0)
       : 0;
+
+  // 共有リンク閲覧回数（匿名アクセスを含む）
+  let shareViewCount = 0;
+  if (allDocuments.length > 0) {
+    const documentIds = allDocuments.map((d) => d.id);
+    const { data: shareViewLogs, error: shareViewError } = await supabase
+      .from("activity_logs")
+      .select("document_id")
+      .eq("action", "view_share")
+      .in("document_id", documentIds);
+
+    if (shareViewError) {
+      console.error("Failed to fetch share view logs:", shareViewError);
+    } else if (shareViewLogs) {
+      shareViewCount = shareViewLogs.length;
+    }
+  }
 
   // カテゴリ別件数のトップ3を集計（ミニグラフ風カード用）
   const categoryStats: [string, number][] = (() => {
@@ -752,8 +880,9 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
 
       {/* メインコンテンツ */}
       <div className="flex min-h-screen flex-1 flex-col">
-        {/* カード用ショートカットレイヤー（クライアントサイド） */}
+        {/* キーボードショートカット（クライアントサイド） */}
         <DocumentCardShortcuts />
+        <SearchShortcuts />
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <h1 className="text-sm font-semibold text-slate-900">
@@ -764,6 +893,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                 合計 {totalCount} 件・ピン {pinnedCount} 件・お気に入り{" "}
                 {favoriteCount} 件
               </span>
+              <ShortcutHelp />
               <UserMenu />
             </div>
           </div>
@@ -829,6 +959,12 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                 <div className="flex items-center justify-between">
                   <dt>共有リンク発行中</dt>
                   <dd className="font-semibold">{sharedCount} 件</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt>共有リンク閲覧合計</dt>
+                  <dd className="font-semibold">
+                    {shareViewCount.toLocaleString("ja-JP")} 回
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt>平均本文ボリューム</dt>
@@ -998,7 +1134,31 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                 >
                   <option value="desc">新しい順</option>
                   <option value="asc">古い順</option>
+                  <option value="pinned">ピン留め優先</option>
                 </select>
+              </div>
+
+              <div className="min-w-[190px]">
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  作成日（From / To）
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    id="from"
+                    name="from"
+                    type="date"
+                    defaultValue={fromDate}
+                    className="w-[7.5rem] rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-900 outline-none ring-emerald-500/20 focus:ring"
+                  />
+                  <span className="text-[10px] text-slate-400">〜</span>
+                  <input
+                    id="to"
+                    name="to"
+                    type="date"
+                    defaultValue={toDate}
+                    className="w-[7.5rem] rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-900 outline-none ring-emerald-500/20 focus:ring"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col items-start gap-2">
@@ -1022,6 +1182,16 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                       className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                     />
                     <span>お気に入りのみ</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      name="sharedOnly"
+                      value="1"
+                      defaultChecked={sharedOnly}
+                      className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <span>共有中のみ</span>
                   </label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1051,7 +1221,10 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                   !category &&
                   !onlyFavorites &&
                   !onlyPinned &&
-                  !showArchived
+                  !showArchived &&
+                  !fromDate &&
+                  !toDate &&
+                  !sharedOnly
                     ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                     : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
                 }`}
@@ -1077,6 +1250,16 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                 }`}
               >
                 お気に入りだけ
+              </Link>
+              <Link
+                href="/app?sharedOnly=1"
+                className={`inline-flex items-center rounded-full px-2 py-1 ${
+                  sharedOnly
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+                }`}
+              >
+                共有中だけ
               </Link>
               <Link
                 href="/app?archived=1"

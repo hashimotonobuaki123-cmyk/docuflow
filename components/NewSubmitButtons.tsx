@@ -5,10 +5,16 @@ import { useFormStatus } from "react-dom";
 type Props = {
   fastAction: (formData: FormData) => void;
   aiAction: (formData: FormData) => void;
+  defaultMode?: "fast" | "ai";
 };
 
-export function NewSubmitButtons({ fastAction, aiAction }: Props) {
+export function NewSubmitButtons({
+  fastAction,
+  aiAction,
+  defaultMode = "ai",
+}: Props) {
   const { pending } = useFormStatus();
+  const fastIsPrimary = defaultMode === "fast";
 
   return (
     <>
@@ -16,7 +22,11 @@ export function NewSubmitButtons({ fastAction, aiAction }: Props) {
         type="submit"
         formAction={fastAction}
         disabled={pending}
-        className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+        className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
+          fastIsPrimary
+            ? "border border-transparent bg-emerald-500 text-white shadow-sm hover:bg-emerald-400"
+            : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        }`}
       >
         {pending ? (
           <span className="inline-flex items-center gap-2">
@@ -32,7 +42,11 @@ export function NewSubmitButtons({ fastAction, aiAction }: Props) {
         type="submit"
         formAction={aiAction}
         disabled={pending}
-        className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+        className={`inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${
+          fastIsPrimary
+            ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            : "border border-transparent bg-emerald-500 text-white shadow-sm hover:bg-emerald-400"
+        }`}
       >
         {pending ? (
           <span className="inline-flex items-center gap-2">

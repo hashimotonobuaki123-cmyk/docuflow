@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activityLog";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { Logo } from "@/components/Logo";
 import { RegenerateSummaryButton } from "@/components/RegenerateSummaryButton";
+import { getShareSettingsForUser } from "@/lib/userSettings";
 
 // UTC の ISO 文字列を、日本時間 (UTC+9) の "YYYY/MM/DD HH:MM" に変換するヘルパー
 function formatJstDateTime(value: string | null): string | null {
@@ -106,15 +107,41 @@ async function enableShare(formData: FormData) {
 
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
+  
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  
+  // フォームから expiresIn が来ない場合は、ユーザーのデフォルト設定を使用
+  let expiresIn = String(formData.get("expiresIn") ?? "").trim();
+  if (!expiresIn) {
+    const shareSettings = await getShareSettingsForUser(userId);
+    expiresIn = shareSettings.defaultExpiresIn;
+  }
+  
   if (!id) return;
 
   const token = randomUUID();
+
+  let shareExpiresAt: string | null = null;
+  if (expiresIn === "7" || expiresIn === "30") {
+    const days = expiresIn === "7" ? 7 : 30;
+    const now = new Date();
+    const expiresDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + days,
+      23,
+      59,
+      59,
+    );
+    shareExpiresAt = expiresDate.toISOString();
+  }
 
   const { error } = await supabase
     .from("documents")
     .update({
       share_token: token,
-      share_expires_at: null,
+      share_expires_at: shareExpiresAt,
     })
     .eq("id", id);
 
@@ -253,9 +280,21 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     created_at: string;
     is_archived?: boolean | null;
     share_token?: string | null;
+    share_expires_at?: string | null;
   };
 
   const tags = Array.isArray(doc.tags) ? doc.tags : [];
+  const shareExpiresAt =
+    (doc as { share_expires_at?: string | null }).share_expires_at ?? null;
+  const shareExpiresDisplay = shareExpiresAt
+    ? (formatJstDateTime(shareExpiresAt) ?? shareExpiresAt)
+    : "なし（無期限）";
+
+  // ユーザーの共有リンク設定を取得（デフォルト値として使用）
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  const shareSettings = await getShareSettingsForUser(userId);
+  const defaultExpiresIn = shareSettings.defaultExpiresIn;
 
   // 作成日時は activity_logs の create_document があればそちらを優先
   let createdAtDisplay: string | null = null;
@@ -405,6 +444,12 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                       <p className="max-w-[220px] truncate font-mono text-[10px] text-slate-700">
                         /share/{doc.share_token}
                       </p>
+                      <p className="text-[10px] text-slate-500">
+                        有効期限:{" "}
+                        <span className="font-medium">
+                          {shareExpiresDisplay}
+                        </span>
+                      </p>
                       <form action={disableShare}>
                         <input type="hidden" name="id" value={doc.id} />
                         <input type="hidden" name="title" value={doc.title} />
@@ -417,9 +462,24 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                       </form>
                     </>
                   ) : (
-                    <form action={enableShare}>
+                    <form
+                      action={enableShare}
+                      className="flex flex-col items-end gap-1"
+                    >
                       <input type="hidden" name="id" value={doc.id} />
                       <input type="hidden" name="title" value={doc.title} />
+                      <label className="flex items-center gap-1 text-[10px] text-slate-500">
+                        <span>有効期限:</span>
+                        <select
+                          name="expiresIn"
+                          defaultValue={defaultExpiresIn}
+                          className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[10px] text-slate-700 outline-none ring-emerald-500/20 focus:ring"
+                        >
+                          <option value="7">7日</option>
+                          <option value="30">30日</option>
+                          <option value="none">無期限</option>
+                        </select>
+                      </label>
                       <button
                         type="submit"
                         className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
@@ -481,6 +541,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                     {doc.share_token ? "有効" : "未発行"}
                   </span>
                 </p>
+                <div className="mt-2">
+                  <a
+                    href={`/documents/${doc.id}/export`}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+                  >
+                    ⬇ Markdownでエクスポート
+                  </a>
+                </div>
               </div>
             </div>
 

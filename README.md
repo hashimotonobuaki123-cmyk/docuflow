@@ -20,10 +20,11 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
 
 ### このリポジトリで見せたいポイント
 
-- **フルスタック構成**: Next.js 16 App Router + Supabase + OpenAI を使った、認証 / DB / AI 要約 / ファイルアップロードまで一通りそろったミニ SaaS
-- **実務寄りのユースケース**: 会議メモ・仕様書・企画書など、実際の仕事で扱うドキュメントを AI 要約で整理するワークスペースを想定
-- **SaaS っぽい UI**: ホワイトベースで Money Forward 系の SaaS を意識したダッシュボード / サイドバー / 設定画面
-- **運用を意識した設計**: `documents` / `document_versions` / `activity_logs` と RLS ポリシーを用意し、将来的なマルチテナント運用を見据えたスキーマ
+- **フルスタック構成**: Next.js 16 App Router + Supabase + OpenAI を使った、認証 / DB / AI 要約 / ファイルアップロードまで一通りそろったミニ SaaS。
+- **実務寄りのユースケース**: 会議メモ・仕様書・企画書など、実際の仕事で扱うドキュメントを AI 要約で整理するワークスペースを想定。
+- **SaaS っぽい UI**: ホワイトベースで Money Forward 系の SaaS を意識したダッシュボード / サイドバー / 設定画面。D&D アップロードやインサイトカード、ショートカットヘルプなども実装。ユーザー設定（AI動作、共有リンク、ダッシュボード表示）をカスタマイズ可能。
+- **運用を意識した設計**: `documents` / `document_versions` / `activity_logs` と RLS ポリシーを用意し、`docs/architecture.md` に RLS 本番対応プランや環境変数の整理 (`lib/config.ts`) を明文化。
+- **品質・テスト**: Vitest によるユニットテスト（AI 生成ロジック / ドキュメント検索）、GitHub Actions による CI（lint / test / coverage / build）を設定し、README 冒頭にバッジで可視化。
 
 ### 主な機能
 
@@ -38,13 +39,19 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
   - タイトル・カテゴリ・本文・要約・タグを持つドキュメント一覧
   - フルテキスト検索（タイトル / 要約 / 本文 / タグ）
   - カテゴリフィルタ、作成日の昇順 / 降順ソート
+  - 詳細検索（作成日 From/To、共有中だけ、お気に入りだけ、ピンだけ）
   - ★ お気に入り / 📌 ピン留め（ソート時にピン留め優先）
   - `/documents/[id]` で詳細表示、`/documents/[id]/edit` で編集
   - 変更前の内容を `document_versions` テーブルに保存して簡易バージョン履歴
+  - アーカイブ / 一括削除 / 一括復元（アーカイブ一覧）による柔らかい削除運用
+  - ダッシュボード上のドラッグ＆ドロップで PDF / Word からカードを自動生成
+  - インサイトカード（直近30日件数 / カテゴリ Top3 / 共有リンク閲覧合計 など）
 
 - **共有リンク（公開ビュー）**
   - `/documents/[id]` から「共有リンクを発行」すると、ログイン不要の閲覧用 URL（例: `/share/<token>`）を生成
   - 共有リンクはいつでも停止可能（DB 上では `share_token` を null に戻す）
+  - 有効期限を 7日 / 30日 / 無期限から選択可能（`share_expires_at` を利用）
+  - 閲覧アクセスは `activity_logs` の `view_share` として記録し、ダッシュボードのインサイトで合計閲覧回数を集計
   - 公開ビュー `/share/[token]` では要約・本文のみ閲覧でき、編集や削除は不可
 
 - **AI 連携**
@@ -77,6 +84,23 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
 - **AI 要約の再生成**
   - ドキュメント詳細から「要約を再生成」ボタンを押すと、最新の本文をもとに AI による要約・タグを再作成
 
+- **設定ページ（`/settings`）**
+  - **AI 設定**
+    - 新規ドキュメント作成時に「保存して要約生成」を既定のおすすめボタンにするかどうか
+    - ダッシュボードのファイルアップロード時に AI 要約・タグを自動生成するかどうか
+  - **共有リンク設定**
+    - 新しく共有リンクを作成する際のデフォルト有効期限（7日 / 30日 / 無期限）
+  - **ダッシュボード設定**
+    - デフォルトの並び順（新しい順 / 古い順 / ピン留め優先）
+    - アーカイブされたドキュメントをデフォルトで表示するかどうか
+    - 共有中のドキュメントのみをデフォルトで表示するかどうか
+  - **アカウント削除**
+    - ユーザー自身のアカウントと関連データを完全に削除
+
+- **その他**
+  - ダッシュボードでのキーボードショートカット（例: `/` で検索フォーカス、`Shift + D` でカード削除）とショートカットヘルプモーダル。
+  - ドキュメント詳細から Markdown (`.md`) としてエクスポート可能。
+
 ---
 
 ### 詳細ドキュメント（設計・仕様）
@@ -85,6 +109,8 @@ Next.js 16（App Router）+ Supabase + OpenAI で構成された学習・ポー�
 - [画面一覧 & 画面遷移（UI Flow）](docs/ui-flow.md)
 - [DB スキーマ / テーブル定義](docs/db-schema.md)
 - [アーキテクチャ設計メモ](docs/architecture.md)
+- [デプロイメントガイド](docs/deployment.md)
+- [トラブルシューティング](docs/troubleshooting.md)
 
 ---
 
@@ -159,9 +185,52 @@ SUPABASE_SERVICE_ROLE_KEY=（Supabase の service_role キー）
   - `user_id` (uuid)
   - `document_id` (uuid, nullable)
   - `document_title` (text, nullable)
-  - `action` (text) …… `create_document` / `update_document` / `delete_document` / `toggle_favorite` / `toggle_pinned` / `enable_share` / `disable_share` / `add_comment`
+  - `action` (text) …… `create_document` / `update_document` / `delete_document` / `toggle_favorite` / `toggle_pinned` / `enable_share` / `disable_share` / `add_comment` / `view_share` / `archive_document` / `restore_document`
   - `metadata` (jsonb, nullable) …… 追加情報（例: on/off など）
   - `created_at` (timestamptz, default now())
+
+- `user_settings`
+  - `user_id` (uuid, PK)
+  - `ai_auto_summary_on_new` (boolean, default true) …… 新規作成時の AI 要約デフォルト
+  - `ai_auto_summary_on_upload` (boolean, default true) …… アップロード時の AI 要約デフォルト
+  - `default_share_expires_in` (text, default '7') …… 共有リンクのデフォルト有効期限
+  - `default_sort` (text, default 'desc') …… ダッシュボードのデフォルト並び順
+  - `default_show_archived` (boolean, default false) …… アーカイブ表示のデフォルト
+  - `default_shared_only` (boolean, default false) …… 共有中のみ表示のデフォルト
+
+- `document_comments`
+  - `id` (uuid, PK)
+  - `document_id` (uuid, FK → documents.id)
+  - `user_id` (uuid, nullable)
+  - `content` (text)
+  - `created_at` (timestamptz, default now())
+
+### Supabase 側でやってほしい SQL（1回だけ）
+
+以下の SQL を Supabase の SQL Editor で実行してください。
+
+#### `user_settings` テーブルの作成
+
+```sql
+create table if not exists public.user_settings (
+  user_id uuid primary key,
+  ai_auto_summary_on_new boolean not null default true,
+  ai_auto_summary_on_upload boolean not null default true,
+  default_share_expires_in text not null default '7',
+  default_sort text not null default 'desc',
+  default_show_archived boolean not null default false,
+  default_shared_only boolean not null default false
+);
+```
+
+> 既に `user_settings` テーブルが存在する場合は、不足しているカラムだけを追加してください：
+> ```sql
+> alter table public.user_settings
+> add column if not exists default_share_expires_in text not null default '7',
+> add column if not exists default_sort text not null default 'desc',
+> add column if not exists default_show_archived boolean not null default false,
+> add column if not exists default_shared_only boolean not null default false;
+> ```
 
 ### RLS / マルチテナント設計（Supabase）
 
@@ -265,7 +334,7 @@ GitHub 上で見たときに UI の雰囲気が一目で伝わるよう、`docs/
 
 ![ダッシュボード画面](docs/screenshots/dashboard.png)
 
-> ドキュメント一覧、インサイトカード、カテゴリ別ミニグラフ、ドラッグ＆ドロップアップロード、ショートカット説明などをまとめたメインワークスペース。
+> メインワークスペース画面。左サイドバー、概要カード（ドキュメント総数・ピン留め・お気に入り・インサイト）、カテゴリ別トップ3ミニグラフ、ドラッグ＆ドロップアップロード、詳細検索フォーム（日付範囲・共有中フィルタ含む）、ドキュメントカード一覧、最近のアクティビティを表示。
 
 ![新規ドキュメント作成画面](docs/screenshots/new-document.png)
 
@@ -277,10 +346,35 @@ GitHub 上で見たときに UI の雰囲気が一目で伝わるよう、`docs/
 
 ![設定画面](docs/screenshots/settings.png)
 
-> アカウント関連の設定と「アカウントを完全に削除する」セクションをまとめたシンプルな設定ページ。
+> AI設定・共有リンク設定・ダッシュボード設定・アカウント削除セクションを含む設定ページ。
 
-※ それぞれの PNG ファイル（`dashboard.png`, `new-document.png`, `document-detail.png`, `settings.png`）は  
-　`docs/screenshots/` に保存された実際のキャプチャ画像を想定しています。好みに応じて差し替え・追加してかまいません。
+![共有リンク閲覧画面](docs/screenshots/share-view.png)
+
+> 共有リンクからアクセスする公開ビュー。要約と本文のみ閲覧可能（編集不可）。
+
+---
+
+### 📸 スクリーンショットの追加方法
+
+現在、以下のスクリーンショットが必要です。実際の画面をキャプチャして `docs/screenshots/` に保存してください：
+
+| ファイル名 | 説明 | 撮影する画面 |
+|-----------|------|------------|
+| `dashboard.png` | ✅ 既存 | `/app` ダッシュボード画面 |
+| `new-document.png` | ❌ 要追加 | `/new` 新規ドキュメント作成画面 |
+| `document-detail.png` | ❌ 要追加 | `/documents/[id]` ドキュメント詳細画面 |
+| `settings.png` | ❌ 要追加 | `/settings` 設定画面（AI設定・共有リンク設定・ダッシュボード設定が表示されている状態） |
+| `share-view.png` | ❌ 要追加 | `/share/[token]` 共有リンク閲覧画面 |
+
+**撮影手順**:
+1. ローカル開発サーバー（`npm run dev`）または本番環境で各画面を開く
+2. ブラウザの開発者ツールで適切な画面サイズに調整（推奨: 1920x1080 または 1440x900）
+3. スクリーンショットを撮影（macOS: `Cmd + Shift + 4`、Windows: `Win + Shift + S`）
+4. `docs/screenshots/` に保存
+
+**動画（オプション）**:
+- デモ動画（GIF または MP4）を `docs/screenshots/demo.gif` または `docs/screenshots/demo.mp4` として追加すると、より分かりやすくなります。
+- 推奨内容: ドキュメント作成 → AI 要約生成 → 検索 → 共有リンク発行 の一連の流れ
 
 ---
 
