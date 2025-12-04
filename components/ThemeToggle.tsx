@@ -1,42 +1,53 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback, useSyncExternalStore } from "react";
 
 type Theme = "light" | "dark" | "system";
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("system");
-  const [mounted, setMounted] = useState(false);
+function applyThemeToDOM(theme: Theme) {
+  const root = document.documentElement;
+  
+  if (theme === "system") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.classList.toggle("dark", prefersDark);
+  } else {
+    root.classList.toggle("dark", theme === "dark");
+  }
+}
 
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    }
-  }, []);
-
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement;
-    
-    if (newTheme === "system") {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.toggle("dark", prefersDark);
-    } else {
-      root.classList.toggle("dark", newTheme === "dark");
-    }
+// For hydration safety
+function subscribe(callback: () => void) {
+  return () => {
+    callback();
   };
+}
 
-  const toggleTheme = () => {
+function getSnapshot() {
+  return true;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
+export function ThemeToggle() {
+  const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("theme") as Theme) || "system";
+    }
+    return "system";
+  });
+
+  const toggleTheme = useCallback(() => {
     const themes: Theme[] = ["light", "dark", "system"];
     const currentIndex = themes.indexOf(theme);
     const nextTheme = themes[(currentIndex + 1) % themes.length];
     
     setTheme(nextTheme);
     localStorage.setItem("theme", nextTheme);
-    applyTheme(nextTheme);
-  };
+    applyThemeToDOM(nextTheme);
+  }, [theme]);
 
   if (!mounted) return null;
 
@@ -75,4 +86,3 @@ export function ThemeToggle() {
     </button>
   );
 }
-

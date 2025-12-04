@@ -4,11 +4,8 @@ export const PROTECTED_PATHS = ["/app", "/new", "/documents", "/settings"];
 export const AUTH_COOKIE = "docuhub_ai_auth";
 
 export function isProtectedPath(pathname: string): boolean {
-  return (
-    pathname.startsWith("/app") ||
-    pathname.startsWith("/new") ||
-    pathname.startsWith("/documents") ||
-    pathname.startsWith("/settings")
+  return PROTECTED_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
   );
 }
 

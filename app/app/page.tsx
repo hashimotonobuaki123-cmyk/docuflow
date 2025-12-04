@@ -467,7 +467,6 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
   const totalCount = allDocuments.length;
   const pinnedCount = allDocuments.filter((d) => d.is_pinned).length;
   const favoriteCount = allDocuments.filter((d) => d.is_favorite).length;
-  const archivedCount = allDocuments.filter((d) => (d as Document).is_archived).length;
   const sharedCount = allDocuments.filter((d) => !!d.share_token).length;
   const avgContentLength =
     allDocuments.length > 0

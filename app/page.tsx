@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import Image from "next/image";
 import { Logo } from "@/components/Logo";
 
 export default async function Home() {
@@ -109,11 +110,13 @@ export default async function Home() {
                   <span className="text-xs text-slate-400">docuflow-azure.vercel.app</span>
                 </div>
               </div>
-              <img
+              <Image
                 src="/docs/screenshots/dashboard.png"
                 alt="DocuFlow ダッシュボード"
+                width={1200}
+                height={800}
                 className="w-full"
-                loading="lazy"
+                priority={false}
               />
             </div>
           </div>

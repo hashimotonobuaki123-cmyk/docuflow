@@ -5,6 +5,8 @@ type ActivityAction =
   | "create_document"
   | "update_document"
   | "delete_document"
+  | "archive_document"
+  | "restore_document"
   | "toggle_favorite"
   | "toggle_pinned"
   | "enable_share"

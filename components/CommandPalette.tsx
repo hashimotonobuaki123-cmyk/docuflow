@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 type Command = {
@@ -16,10 +16,9 @@ export function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const commands: Command[] = [
+  const commands: Command[] = useMemo(() => [
     // Navigation
     {
       id: "go-dashboard",
@@ -89,36 +88,54 @@ export function CommandPalette() {
       action: () => router.push("/auth/logout"),
       category: "settings",
     },
-  ];
+  ], [router]);
 
-  const filteredCommands = query
-    ? commands.filter(
-        (cmd) =>
-          cmd.label.toLowerCase().includes(query.toLowerCase()) ||
-          cmd.id.includes(query.toLowerCase())
-      )
-    : commands;
+  const filteredCommands = useMemo(() => {
+    return query
+      ? commands.filter(
+          (cmd) =>
+            cmd.label.toLowerCase().includes(query.toLowerCase()) ||
+            cmd.id.includes(query.toLowerCase())
+        )
+      : commands;
+  }, [query, commands]);
 
-  const groupedCommands = {
+  const groupedCommands = useMemo(() => ({
     navigation: filteredCommands.filter((c) => c.category === "navigation"),
     action: filteredCommands.filter((c) => c.category === "action"),
     settings: filteredCommands.filter((c) => c.category === "settings"),
-  };
+  }), [filteredCommands]);
 
-  const flatFilteredCommands = [
+  const flatFilteredCommands = useMemo(() => [
     ...groupedCommands.navigation,
     ...groupedCommands.action,
     ...groupedCommands.settings,
-  ];
+  ], [groupedCommands]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+  const executeCommand = useCallback((index: number) => {
+    const command = flatFilteredCommands[index];
+    if (command) {
+      command.action();
+      setIsOpen(false);
+      setQuery("");
+    }
+  }, [flatFilteredCommands]);
+
+  // Handle query change - reset selected index
+  const handleQueryChange = useCallback((newQuery: string) => {
+    setQuery(newQuery);
+    setSelectedIndex(0);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       // Open command palette
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsOpen((prev) => !prev);
         setQuery("");
         setSelectedIndex(0);
+        return;
       }
 
       if (!isOpen) return;
@@ -145,30 +162,15 @@ export function CommandPalette() {
       }
 
       // Execute
-      if (e.key === "Enter" && flatFilteredCommands[selectedIndex]) {
+      if (e.key === "Enter") {
         e.preventDefault();
-        flatFilteredCommands[selectedIndex].action();
-        setIsOpen(false);
-        setQuery("");
+        executeCommand(selectedIndex);
       }
-    },
-    [isOpen, flatFilteredCommands, selectedIndex]
-  );
+    };
 
-  useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
-  useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
+  }, [isOpen, flatFilteredCommands.length, selectedIndex, executeCommand]);
 
   if (!isOpen) return null;
 
@@ -205,12 +207,12 @@ export function CommandPalette() {
               />
             </svg>
             <input
-              ref={inputRef}
               type="text"
               placeholder="コマンドを検索..."
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+              autoFocus
             />
             <kbd className="hidden sm:inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-500">
               ESC
@@ -311,4 +313,3 @@ export function CommandPalette() {
     </>
   );
 }
-
