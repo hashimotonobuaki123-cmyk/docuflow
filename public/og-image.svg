@@ -1,0 +1,33 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="50%" style="stop-color:#0ea5e9"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  
+  <!-- Decorative circles -->
+  <circle cx="100" cy="100" r="200" fill="white" fill-opacity="0.1"/>
+  <circle cx="1100" cy="530" r="250" fill="white" fill-opacity="0.1"/>
+  <circle cx="600" cy="315" r="400" fill="white" fill-opacity="0.05"/>
+  
+  <!-- Logo Icon -->
+  <g transform="translate(480, 180)">
+    <rect x="0" y="0" width="80" height="80" rx="20" fill="white" fill-opacity="0.2"/>
+    <text x="40" y="55" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="white" text-anchor="middle">DF</text>
+  </g>
+  
+  <!-- Title -->
+  <text x="600" y="320" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">DocuFlow</text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="400" font-family="Arial, sans-serif" font-size="32" fill="white" fill-opacity="0.9" text-anchor="middle">AI-Powered Document Workspace</text>
+  
+  <!-- Tagline -->
+  <text x="600" y="480" font-family="Arial, sans-serif" font-size="24" fill="white" fill-opacity="0.7" text-anchor="middle">PDF・Word を一瞬で要約。スマートなドキュメント管理を。</text>
+</svg>
+

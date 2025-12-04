@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://docuflow-azure.vercel.app"),
   title: "DocuFlow | AI 要約ドキュメントワークスペース",
   description:
     "DocuFlow は、AI 要約で、PDF や Word 資料を一瞬で整理するドキュメントワークスペースです。GPT-4を活用した自動要約、タグ付け、全文検索で効率的なドキュメント管理を実現します。",
@@ -30,15 +31,23 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "DocuFlow | AI 要約ドキュメントワークスペース",
-    description: "AI 要約で、PDF / Word 資料を一瞬で整理",
+    description: "AI 要約で、PDF / Word 資料を一瞬で整理。GPT-4を活用したスマートなドキュメント管理。",
     type: "website",
-    images: ["/icon.svg"],
+    siteName: "DocuFlow",
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "DocuFlow - AI-Powered Document Workspace",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "DocuFlow | AI 要約ドキュメントワークスペース",
     description: "AI 要約で、PDF / Word 資料を一瞬で整理",
-    images: ["/icon.svg"],
+    images: ["/og-image.svg"],
   },
 };
 
