@@ -10,7 +10,7 @@
 
 <br />
 
-[![CI](https://img.shields.io/github/actions/workflow/status/tanasho/dooai/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI)](https://github.com/tanasho/dooai/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/hashimotonobuaki123-cmyk/docuflow/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI)](https://github.com/hashimotonobuaki123-cmyk/docuflow/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -18,7 +18,14 @@
 
 <br />
 
-[**🌐 Live Demo**](https://docuflow-azure.vercel.app) &nbsp;&nbsp;·&nbsp;&nbsp; [**📖 Docs**](docs/) &nbsp;&nbsp;·&nbsp;&nbsp; [**🐛 Bug Report**](https://github.com/tanasho/dooai/issues) &nbsp;&nbsp;·&nbsp;&nbsp; [**✨ Feature Request**](https://github.com/tanasho/dooai/issues)
+<a href="https://docuflow-azure.vercel.app" target="_blank">
+  <img src="https://img.shields.io/badge/🌐_Live_Demo-Visit_App-10b981?style=for-the-badge" alt="Live Demo" />
+</a>
+
+<br />
+<br />
+
+[**📖 Docs**](docs/) &nbsp;&nbsp;·&nbsp;&nbsp; [**🐛 Bug Report**](https://github.com/hashimotonobuaki123-cmyk/docuflow/issues) &nbsp;&nbsp;·&nbsp;&nbsp; [**✨ Feature Request**](https://github.com/hashimotonobuaki123-cmyk/docuflow/issues)
 
 <br />
 
