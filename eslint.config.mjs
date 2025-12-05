@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "coverage/**",
     // NodeスクリプトはESLint対象外（CommonJSのため）
     "scripts/**",
+    // E2Eテスト関連
+    "e2e/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

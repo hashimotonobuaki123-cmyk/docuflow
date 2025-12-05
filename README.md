@@ -11,6 +11,7 @@
 <br />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/hashimotonobuaki123-cmyk/docuflow/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI)](https://github.com/hashimotonobuaki123-cmyk/docuflow/actions)
+[![codecov](https://img.shields.io/codecov/c/github/hashimotonobuaki123-cmyk/docuflow?style=for-the-badge&logo=codecov&logoColor=white)](https://codecov.io/gh/hashimotonobuaki123-cmyk/docuflow)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -172,6 +173,7 @@ PDF・Word ファイルをドラッグ＆ドロップ。`pdf-parse` / `mammoth` 
 ### Testing & Quality
 
 [![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Playwright](https://img.shields.io/badge/Playwright-45ba4b?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev/)
 [![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)](https://eslint.org/)
 [![Prettier](https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=black)](https://prettier.io/)
 
@@ -433,6 +435,9 @@ npm run build
 | [🎨 UI Flow](docs/ui-flow.md) | 画面遷移とユーザーフロー |
 | [🗄️ Database Schema](docs/db-schema.md) | テーブル定義と RLS |
 | [🏗️ Architecture](docs/architecture.md) | システム設計 |
+| [🚀 Operations Guide](docs/operations.md) | 運用ガイド・デプロイ手順 |
+| [⚠️ Error Handling](docs/error-handling.md) | エラーハンドリング方針 |
+| [📊 Monitoring](docs/monitoring.md) | 監視・ログ設計 |
 
 <br />
 
