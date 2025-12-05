@@ -8,6 +8,11 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// iOS Safari の standalone 判定用に Navigator を拡張
+interface NavigatorWithStandalone extends Navigator {
+  standalone?: boolean;
+}
+
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -19,7 +24,7 @@ export function PWAInstallPrompt() {
     // すでにインストール済みかチェック
     if (
       window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true
+      ((window.navigator as NavigatorWithStandalone).standalone ?? false)
     ) {
       setIsInstalled(true);
       return;

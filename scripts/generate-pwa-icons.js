@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires, @typescript-eslint/no-unused-vars */
 // Generate PWA icons from SVG
 // This script requires sharp: npm install --save-dev sharp
 
