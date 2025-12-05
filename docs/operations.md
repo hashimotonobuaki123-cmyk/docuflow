@@ -189,6 +189,120 @@ npm install package@latest
 
 ---
 
+---
+
+## 🔒 セキュリティ運用
+
+### Row Level Security (RLS)
+
+DocuFlow では Supabase の RLS を本番運用レベルで有効化しています。
+
+#### RLS ポリシー概要
+
+| テーブル | SELECT | INSERT | UPDATE | DELETE |
+|:---------|:-------|:-------|:-------|:-------|
+| `documents` | 自分のみ + 共有リンク | 自分のみ | 自分のみ | 自分のみ |
+| `document_versions` | 自分のみ | 自分のみ | - | 自分のみ |
+| `activity_logs` | 自分のみ | 自分のみ | - | - |
+| `document_comments` | 自分のドキュメント + 共有 | 自分のドキュメント | - | 自分のコメント |
+
+#### ポリシーの仕組み
+
+```sql
+-- 例: documents テーブルの SELECT ポリシー
+CREATE POLICY "Users can view own documents"
+ON public.documents FOR SELECT
+USING (
+  (auth.uid() IS NOT NULL AND user_id::text = auth.uid()::text)
+  OR
+  (share_token IS NOT NULL)  -- 共有リンク用
+);
+```
+
+#### 共有リンクの仕組み
+
+- `share_token` が設定されたドキュメントは、認証なしで閲覧可能
+- 専用関数 `get_shared_document(token)` で安全に取得
+- 編集・削除は常に認証ユーザーのみ
+
+### Service Role の使用
+
+管理者操作（アカウント削除等）では `SUPABASE_SERVICE_ROLE_KEY` を使用：
+
+```typescript
+// supabaseAdmin.ts で定義
+// RLS をバイパスして管理操作を実行
+const supabaseAdmin = createClient(url, serviceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
+```
+
+### セキュリティチェックリスト
+
+#### 週次
+
+- [ ] Supabase Dashboard で不審なクエリログを確認
+- [ ] `npm audit` でパッケージの脆弱性を確認
+- [ ] RLS ポリシーのログを確認
+
+#### リリース時
+
+- [ ] 新テーブルに RLS が有効か確認
+- [ ] 機密情報が環境変数で管理されているか確認
+- [ ] API キーのローテーションが必要か確認
+
+---
+
+## 📊 モニタリング & エラートラッキング
+
+### Sentry 統合
+
+DocuFlow は Sentry を使用してエラートラッキングとパフォーマンス監視を行います。
+
+#### 環境変数
+
+```env
+# 必須（本番環境）
+NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
+SENTRY_ORG=your-org
+SENTRY_PROJECT=docuflow
+SENTRY_AUTH_TOKEN=sntrys_xxx...  # ソースマップアップロード用
+```
+
+#### エラーキャプチャの使い方
+
+```typescript
+import { captureError, captureAiError, captureAuthError } from "@/lib/sentry";
+
+// 一般的なエラー
+captureError(error, {
+  tags: { action: "create_document" },
+  extra: { documentId: "xxx" },
+});
+
+// AI 関連エラー
+captureAiError("generate_summary", error, {
+  model: "gpt-4.1-mini",
+  inputLength: 5000,
+});
+
+// 認証エラー
+captureAuthError("login", error, { userId: "xxx" });
+```
+
+#### サンプリング設定
+
+| 項目 | 設定値 | 理由 |
+|:-----|:-------|:-----|
+| `tracesSampleRate` | 0.2 (20%) | コスト最適化 |
+| `replaysSessionSampleRate` | 0.1 (10%) | 高コストのため |
+| `replaysOnErrorSampleRate` | 1.0 (100%) | エラー時は全収集 |
+
+---
+
 ## 連絡先
 
 - **緊急時**: GitHub Issues で `priority: critical` ラベルを付けて報告

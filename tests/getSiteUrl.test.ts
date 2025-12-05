@@ -18,7 +18,7 @@ describe("getSiteUrl", () => {
     process.env.NEXT_PUBLIC_SITE_URL = "https://custom-domain.com";
 
     // Remove window to simulate server-side
-    // @ts-ignore
+    // @ts-expect-error: Intentionally deleting window for server-side simulation
     delete global.window;
 
     const { getSiteUrl } = await import("../lib/getSiteUrl");
@@ -29,7 +29,7 @@ describe("getSiteUrl", () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
 
     // Mock window.location
-    // @ts-ignore
+    // @ts-expect-error: Intentionally deleting window for server-side simulation
     global.window = {
       location: {
         origin: "https://docuflow-azure.vercel.app",
@@ -44,7 +44,7 @@ describe("getSiteUrl", () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
 
     // Mock window.location for localhost
-    // @ts-ignore
+    // @ts-expect-error: Intentionally deleting window for server-side simulation
     global.window = {
       location: {
         origin: "http://localhost:3000",
@@ -58,7 +58,7 @@ describe("getSiteUrl", () => {
   it("should return localhost for 127.0.0.1", async () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
 
-    // @ts-ignore
+    // @ts-expect-error: Intentionally deleting window for server-side simulation
     global.window = {
       location: {
         origin: "http://127.0.0.1:3000",
@@ -72,7 +72,7 @@ describe("getSiteUrl", () => {
   it("should return production URL as fallback on server-side", async () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
 
-    // @ts-ignore
+    // @ts-expect-error: Intentionally deleting window for server-side simulation
     delete global.window;
 
     const { getSiteUrl } = await import("../lib/getSiteUrl");
@@ -82,7 +82,7 @@ describe("getSiteUrl", () => {
   it("should prioritize env variable over window.location", async () => {
     process.env.NEXT_PUBLIC_SITE_URL = "https://env-domain.com";
 
-    // @ts-ignore
+    // @ts-expect-error: Intentionally deleting window for server-side simulation
     global.window = {
       location: {
         origin: "https://different-domain.com",

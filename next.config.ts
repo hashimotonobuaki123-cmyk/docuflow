@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // パフォーマンス最適化
@@ -66,4 +67,21 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry の設定
+const sentryWebpackPluginOptions = {
+  // Sentry CLI 設定
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // ソースマップのアップロード（本番ビルドのみ）
+  silent: true,
+  hideSourceMaps: true,
+
+  // パフォーマンス最適化
+  disableLogger: true,
+
+  // Vercel でのビルド時にソースマップをアップロード
+  automaticVercelMonitors: true,
+};
+
+export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);

@@ -303,8 +303,167 @@ Supabase では以下を監視：
 | 用途 | ツール | 備考 |
 |:-----|:-------|:-----|
 | APM | Vercel Analytics | 無料枠で十分 |
+| エラートラッキング | Sentry | リアルタイムエラー監視 |
 | ログ | Vercel Logs | リアルタイムログ |
 | DB監視 | Supabase Dashboard | 標準搭載 |
-| アラート | GitHub Actions | CI/CDと統合 |
+| アラート | GitHub Actions + Sentry | CI/CDと統合 |
 | 外形監視 | UptimeRobot | 無料で使用可能 |
+
+---
+
+## 🔔 Sentry によるエラートラッキング
+
+### Sentry ダッシュボード概要
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Sentry Dashboard - DocuFlow                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │   Issues     │  │   Events     │  │   Users      │              │
+│  │   12         │  │   1,234      │  │   Affected   │              │
+│  │   Unresolved │  │   This week  │  │   45         │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │              Error Frequency (7 days)                        │   │
+│  │   ▂▃▅▂▁▁▂▃▂▁▁▁▂▃▅▇▅▃▂▁▁▂▃▂▁                               │   │
+│  │   Peak: 2024-12-01 15:00 - AI API Rate Limit                │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │              Top Issues                                      │   │
+│  │   1. OpenAI Rate Limit Exceeded     │ 45 events │ High      │   │
+│  │   2. Supabase Connection Timeout    │ 12 events │ Medium    │   │
+│  │   3. PDF Parse Error               │ 8 events  │ Low       │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Sentry アラート設定
+
+#### アラートルール
+
+```yaml
+# Critical - 即時対応
+- name: "High Error Rate"
+  conditions:
+    - "Number of events > 100 in 5 minutes"
+  action: "Slack #alerts + PagerDuty"
+
+- name: "New Unhandled Exception"
+  conditions:
+    - "First seen error in production"
+  action: "Slack #errors"
+
+# Warning - 24時間以内対応
+- name: "AI API Errors Spike"
+  conditions:
+    - "OpenAI errors > 10 in 30 minutes"
+  action: "Slack #alerts"
+
+- name: "Auth Errors Spike"
+  conditions:
+    - "Auth errors > 20 in 1 hour"
+  action: "Slack #alerts"
+```
+
+### Sentry 統合コード例
+
+#### エラーキャプチャ
+
+```typescript
+import { captureError, captureAiError } from "@/lib/sentry";
+
+// 基本的なエラーキャプチャ
+try {
+  await riskyOperation();
+} catch (error) {
+  captureError(error, {
+    tags: { feature: "document_upload" },
+    extra: { fileSize: file.size },
+    level: "error",
+  });
+}
+
+// AI 操作のエラー
+try {
+  await generateSummary(content);
+} catch (error) {
+  captureAiError("generate_summary", error, {
+    model: "gpt-4.1-mini",
+    inputLength: content.length,
+  });
+}
+```
+
+#### パフォーマンストレース
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+
+// カスタムスパン
+const span = Sentry.startInactiveSpan({
+  name: "PDF Processing",
+  op: "file.process",
+});
+
+try {
+  const result = await processPdf(file);
+  span?.setStatus({ code: 1 }); // OK
+} catch (error) {
+  span?.setStatus({ code: 2, message: "Error" });
+  throw error;
+} finally {
+  span?.end();
+}
+```
+
+### 環境変数設定
+
+```env
+# Sentry DSN（必須）
+NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
+
+# ソースマップアップロード用（Vercel ビルド時）
+SENTRY_ORG=your-organization
+SENTRY_PROJECT=docuflow
+SENTRY_AUTH_TOKEN=sntrys_xxx...
+
+# リリースバージョン（Vercel が自動設定）
+NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA=abc123...
+```
+
+### Vercel 環境変数の設定手順
+
+1. [Sentry](https://sentry.io) でプロジェクトを作成
+2. DSN を取得（Settings > Client Keys）
+3. Auth Token を取得（Settings > Auth Tokens）
+4. Vercel Dashboard で環境変数を設定：
+   - `NEXT_PUBLIC_SENTRY_DSN`
+   - `SENTRY_ORG`
+   - `SENTRY_PROJECT`
+   - `SENTRY_AUTH_TOKEN`
+
+### フィルタリングルール
+
+以下のエラーは自動的にフィルタリングされ、Sentry に送信されません：
+
+```typescript
+const ignoredErrors = [
+  "ResizeObserver loop limit exceeded",  // ブラウザの無害な警告
+  "Network request failed",               // 一時的なネットワーク障害
+  "Load failed",                          // リソース読み込み失敗
+  "cancelled",                            // ユーザーによるキャンセル
+];
+```
+
+### プライバシー保護
+
+- セッションリプレイでは全テキストがマスクされます
+- メディア（画像・動画）はブロックされます
+- 認証ヘッダーとCookieは自動的にスクラブされます
+- メールアドレスは一部マスクして送信されます
 
