@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 import { Logo } from "@/components/Logo";
+import { getSiteUrl } from "@/lib/getSiteUrl";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -42,9 +43,15 @@ export default function SignupPage() {
 
     setLoading(true);
 
+    // 実行時に正しいURLを取得（本番環境では常に本番URLを使用）
+    const siteUrl = getSiteUrl();
+
     const { error: signUpError } = await supabaseBrowser.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${siteUrl}/auth/login`,
+      },
     });
 
     setLoading(false);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 import { Logo } from "@/components/Logo";
+import { getSiteUrl } from "@/lib/getSiteUrl";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -23,9 +24,13 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
 
+    // 実行時に正しいURLを取得（本番環境では常に本番URLを使用）
+    const siteUrl = getSiteUrl();
+    const redirectUrl = `${siteUrl}/auth/reset`;
+
     const { error: resetError } =
       await supabaseBrowser.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset`,
+        redirectTo: redirectUrl,
       });
 
     setLoading(false);
