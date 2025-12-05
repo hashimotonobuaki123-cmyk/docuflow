@@ -24,9 +24,13 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
 
-    // 実行時に正しいURLを取得（本番環境では常に本番URLを使用）
+    // 本番環境では常に本番URLを強制使用
+    // 環境変数 NEXT_PUBLIC_SITE_URL が設定されていればそれを使用
+    // なければ、実行時に判定（localhost以外は本番URL）
     const siteUrl = getSiteUrl();
     const redirectUrl = `${siteUrl}/auth/reset`;
+
+    console.log("[Password Reset] Using redirect URL:", redirectUrl);
 
     const { error: resetError } =
       await supabaseBrowser.auth.resetPasswordForEmail(email, {
