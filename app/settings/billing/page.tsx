@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Stripe from "stripe";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -10,6 +11,9 @@ type OrganizationRow = {
   plan: "free" | "pro" | "team";
   seat_limit: number | null;
   document_limit: number | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  billing_email: string | null;
 };
 
 export default async function BillingSettingsPage() {
@@ -22,7 +26,9 @@ export default async function BillingSettingsPage() {
 
   const { data: organizations } = await supabase
     .from("organizations")
-    .select("id, name, plan, seat_limit, document_limit")
+    .select(
+      "id, name, plan, seat_limit, document_limit, stripe_customer_id, stripe_subscription_id, billing_email",
+    )
     .order("created_at", { ascending: true })
     .limit(5);
 
@@ -30,6 +36,38 @@ export default async function BillingSettingsPage() {
 
   const stripeConfigured =
     !!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_PRICE_PRO_MONTH;
+
+  let subscriptionSummary:
+    | {
+        status: string;
+        currentPeriodEnd: string;
+      }
+    | null = null;
+
+  if (
+    stripeConfigured &&
+    primaryOrg?.stripe_subscription_id &&
+    process.env.STRIPE_SECRET_KEY
+  ) {
+    try {
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2024-06-20",
+      });
+      const subscription = await stripe.subscriptions.retrieve(
+        primaryOrg.stripe_subscription_id,
+      );
+      const currentPeriodEnd = new Date(
+        subscription.current_period_end * 1000,
+      ).toLocaleString("ja-JP");
+
+      subscriptionSummary = {
+        status: subscription.status,
+        currentPeriodEnd,
+      };
+    } catch (error) {
+      console.warn("Failed to load Stripe subscription summary:", error);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -100,6 +138,39 @@ export default async function BillingSettingsPage() {
                   </p>
                 </div>
               </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold text-slate-600">
+                    請求先メールアドレス
+                  </p>
+                  <p className="mt-1 text-sm text-slate-900">
+                    {primaryOrg.billing_email ?? "Stripe 上で管理（Checkout で入力）"}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Stripe Checkout で入力したメールアドレスが請求通知の送付先になります。
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold text-slate-600">
+                    サブスクリプション状況
+                  </p>
+                  {subscriptionSummary ? (
+                    <div className="mt-1 space-y-1 text-sm text-slate-900">
+                      <p>ステータス: {subscriptionSummary.status}</p>
+                      <p>現在の請求期間の終了: {subscriptionSummary.currentPeriodEnd}</p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-900">
+                      まだ有効なサブスクリプションはありません。
+                    </p>
+                  )}
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    詳細な請求履歴は Stripe ダッシュボードから確認できます。
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -120,13 +191,19 @@ export default async function BillingSettingsPage() {
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
-            <button
-              type="button"
-              className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-              disabled={!stripeConfigured}
+            <form
+              action="/api/billing/create-checkout-session"
+              method="post"
+              className="inline"
             >
-              Pro にアップグレード（Stripe Checkout）
-            </button>
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                disabled={!stripeConfigured}
+              >
+                Pro にアップグレード（Stripe Checkout）
+              </button>
+            </form>
             {!stripeConfigured && (
               <span className="text-[11px] text-emerald-900">
                 環境変数 <code>STRIPE_SECRET_KEY</code>,{" "}

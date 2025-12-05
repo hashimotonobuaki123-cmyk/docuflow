@@ -26,6 +26,7 @@ import {
   setActiveOrganization,
 } from "@/lib/organizations";
 import { NotificationBell } from "@/components/NotificationBell";
+import { AppOnboardingTour } from "@/components/AppOnboardingTour";
 import {
   getUserNotifications,
   getUnreadNotificationCount,
@@ -724,6 +725,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
         </header>
 
         <main className="mx-auto flex max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
+        <AppOnboardingTour />
         {/* 概要カード */}
         <section className="grid gap-4 md:grid-cols-4 animate-fade-in">
           {/* Total Documents - Highlight Card */}

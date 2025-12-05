@@ -119,7 +119,35 @@ HTTP ステータス: `500 Internal Server Error`
 
 ---
 
-## 4. 今後の拡張予定
+## 4. OpenAPI / SDK / Playground
+
+### 4.1 OpenAPI 定義
+
+- `docs/openapi.yaml` に `/api/documents` 系エンドポイントの OpenAPI 3.1 定義を用意しています。
+- Swagger UI や Stoplight などで読み込めば、そのままインタラクティブドキュメントとして利用可能です。
+
+### 4.2 TypeScript SDK（雛形）
+
+- `sdk/docuflow.ts` に、TypeScript 向けの軽量クライアントを用意しています。
+
+```ts
+import { DocuFlowClient } from "./sdk/docuflow";
+
+const client = new DocuFlowClient({
+  apiKey: process.env.DOCUFLOW_API_KEY!,
+});
+
+const docs = await client.listDocuments();
+```
+
+### 4.3 API Playground
+
+- Next.js アプリ内に `/dev/api-console` を用意し、ブラウザから直接 API を試せます。
+- Base URL と `X-API-Key` を入力し、`GET /api/documents` / `GET /api/documents/:id` をその場で叩けます。
+
+---
+
+## 5. 今後の拡張予定
 
 - `POST /api/documents` : 外部サービスからのドキュメント作成
 - `PATCH /api/documents/[id]` : タイトル・カテゴリ・タグの更新
@@ -128,5 +156,6 @@ HTTP ステータス: `500 Internal Server Error`
 
 これらを実装することで、Zapier / n8n / GitHub Actions などから  
 DocuFlow を **チームのナレッジハブとして自動連携** することを想定しています。
+
 
 

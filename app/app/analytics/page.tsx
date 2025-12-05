@@ -12,6 +12,11 @@ type UserActivity = {
   count: number;
 };
 
+type WeeklyCount = {
+  week_start: string;
+  count: number;
+};
+
 export default async function AnalyticsPage() {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
@@ -30,6 +35,14 @@ export default async function AnalyticsPage() {
     p_user_id: userId,
   });
 
+  // 週次のドキュメント作成数（直近8週間） - 継続利用度のざっくり指標
+  const { data: weeklyDocs } = await supabase.rpc(
+    "get_weekly_document_counts_last_8_weeks",
+    {
+      p_user_id: userId,
+    },
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -38,7 +51,7 @@ export default async function AnalyticsPage() {
             チーム利用分析（ベータ）
           </h1>
           <p className="text-xs text-slate-500">
-            直近30日の利用状況をざっくり可視化したページです。
+            直近30日と直近8週間の利用状況をざっくり可視化したページです。
           </p>
         </div>
       </header>
@@ -70,6 +83,48 @@ export default async function AnalyticsPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">
+            週次ドキュメント作成数（直近8週間）
+          </h2>
+          {(!weeklyDocs || weeklyDocs.length === 0) ? (
+            <p className="text-xs text-slate-500">
+              まだ直近8週間に作成されたドキュメントがありません。
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2 text-xs text-slate-700">
+              <div className="flex items-baseline justify-between">
+                <p className="text-[11px] text-slate-500">
+                  「どれくらいの頻度で使われているか」のざっくり指標です。
+                </p>
+                <p className="text-[11px] font-medium text-emerald-700">
+                  アクティブ週数:{" "}
+                  {
+                    (weeklyDocs as WeeklyCount[]).filter((w) => w.count > 0)
+                      .length
+                  }{" "}
+                  / 8 週間
+                </p>
+              </div>
+              <div className="flex gap-1">
+                {(weeklyDocs as WeeklyCount[]).map((row) => (
+                  <div
+                    key={row.week_start}
+                    className="flex-1 rounded-md bg-slate-100 px-1 pb-1 pt-2 text-center"
+                  >
+                    <div className="text-[10px] text-slate-500">
+                      {row.week_start}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">
+                      {row.count}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </section>
 
@@ -114,5 +169,6 @@ export default async function AnalyticsPage() {
     </div>
   );
 }
+
 
 

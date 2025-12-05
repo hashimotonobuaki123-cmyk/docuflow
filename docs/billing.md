@@ -21,6 +21,9 @@ DocuFlow を「個人利用のツール」ではなく「チーム向け SaaS」
   - `plan text not null default 'free' check (plan in ('free', 'pro', 'team'))`
   - `seat_limit integer` - メンバー数上限
   - `document_limit integer` - ドキュメント数上限
+  - `stripe_customer_id text` - Stripe の Customer ID
+  - `stripe_subscription_id text` - Stripe の Subscription ID
+  - `billing_email text` - 請求先メールアドレス（Stripe 側の値を同期）
 
 将来的には、Seat ベース課金 / Usage ベース課金（AI 呼び出し回数など）への拡張も想定。
 
@@ -60,6 +63,7 @@ POST /api/billing/create-checkout-session
 Stripe Webhook → /api/stripe/webhook
     │
     └─ 該当 organization の plan を 'pro' に更新
+          + stripe_customer_id / stripe_subscription_id / billing_email を保存
 ```
 
 ### 2.3 セキュリティと制限
