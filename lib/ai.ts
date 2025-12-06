@@ -6,7 +6,9 @@ const openai = new OpenAI({
 
 export async function generateSummaryAndTags(rawContent: string) {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
+    // 環境変数がない場合でもアプリ全体が落ちないよう、簡易要約でフォールバック
+    const fallbackSummary = rawContent.slice(0, 200);
+    return { summary: fallbackSummary, tags: [] as string[] };
   }
 
   const prompt = `
@@ -24,25 +26,25 @@ ${rawContent}
 ---
 `.trim();
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an assistant that summarizes Japanese documents and returns strict JSON.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.2,
-  });
-
-  const content = response.choices[0]?.message?.content ?? "";
-
   try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an assistant that summarizes Japanese documents and returns strict JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+    });
+
+    const content = response.choices[0]?.message?.content ?? "";
+
     const parsed = JSON.parse(content) as {
       summary?: string;
       tags?: string[];
@@ -53,30 +55,36 @@ ${rawContent}
       tags: parsed.tags ?? [],
     };
   } catch {
-    const fallback = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an assistant that summarizes Japanese documents in 3-5 sentences.",
-        },
-        {
-          role: "user",
-          content: rawContent,
-        },
-      ],
-      temperature: 0.2,
-    });
+    try {
+      const fallback = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an assistant that summarizes Japanese documents in 3-5 sentences.",
+          },
+          {
+            role: "user",
+            content: rawContent,
+          },
+        ],
+        temperature: 0.2,
+      });
 
-    const summary = fallback.choices[0]?.message?.content ?? "";
-    return { summary, tags: [] };
+      const summary = fallback.choices[0]?.message?.content ?? "";
+      return { summary, tags: [] as string[] };
+    } catch (error) {
+      console.error("[ai] generateSummaryAndTags fallback error:", error);
+      const fallbackSummary = rawContent.slice(0, 200);
+      return { summary: fallbackSummary, tags: [] as string[] };
+    }
   }
 }
 
 export async function generateTitleFromContent(rawContent: string) {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
+    return "無題ドキュメント";
   }
 
   const prompt = `
@@ -93,33 +101,38 @@ ${rawContent}
 ---
 `.trim();
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an assistant that generates concise Japanese document titles.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.3,
-  });
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an assistant that generates concise Japanese document titles.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.3,
+    });
 
-  let title = response.choices[0]?.message?.content?.trim() ?? "";
+    let title = response.choices[0]?.message?.content?.trim() ?? "";
 
-  // もしタイトルが引用符で囲まれていたら外す
-  title = title.replace(/^["「『\s]+/, "").replace(/["」』\s]+$/, "");
+    // もしタイトルが引用符で囲まれていたら外す
+    title = title.replace(/^["「『\s]+/, "").replace(/["」』\s]+$/, "");
 
-  return title || "無題ドキュメント";
+    return title || "無題ドキュメント";
+  } catch (error) {
+    console.error("[ai] generateTitleFromContent error:", error);
+    return "無題ドキュメント";
+  }
 }
 
 export async function generateCategoryFromContent(rawContent: string) {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
+    return "未分類";
   }
 
   const prompt = `
@@ -136,26 +149,31 @@ ${rawContent}
 ---
 `.trim();
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an assistant that generates concise Japanese document category names.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.2,
-  });
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an assistant that generates concise Japanese document category names.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+    });
 
-  let category = response.choices[0]?.message?.content?.trim() ?? "";
-  category = category.replace(/^["「『\s]+/, "").replace(/["」』\s]+$/, "");
+    let category = response.choices[0]?.message?.content?.trim() ?? "";
+    category = category.replace(/^["「『\s]+/, "").replace(/["」』\s]+$/, "");
 
-  return category || "未分類";
+    return category || "未分類";
+  } catch (error) {
+    console.error("[ai] generateCategoryFromContent error:", error);
+    return "未分類";
+  }
 }
 
 /**
@@ -165,16 +183,22 @@ ${rawContent}
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
+    // Embedding が利用できない場合は空配列でフォールバック（ベクトル検索はスキップ）
+    return [];
   }
 
   // テキストが長すぎる場合は先頭8000文字に切り詰める（トークン制限対策）
   const truncatedText = text.slice(0, 8000);
 
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: truncatedText,
-  });
+  try {
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: truncatedText,
+    });
 
-  return response.data[0].embedding;
+    return response.data[0].embedding;
+  } catch (error) {
+    console.error("[ai] generateEmbedding error:", error);
+    return [];
+  }
 }

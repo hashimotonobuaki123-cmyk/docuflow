@@ -349,6 +349,22 @@ AI要約付き新規作成・ファイルアップロード
 <br />
 
 ## 🚀 Getting Started
+ 
+## 🔍 How to Review (for Reviewers / 面接官向けの見方)
+
+DocuFlow の「SaaSとしての完成度」を素早く確認したい人向けのチェックリストです。
+
+1. **/auth/login → /app**  
+   - 初回アクセス時のオンボーディングカードと、AI要約付きダッシュボードをざっと確認。
+2. **/settings/organizations / /settings/billing**  
+   - 組織（Organization）とプラン（Free / Pro）がどうモデリングされているかを見る。
+3. **/dev/api-console + docs/openapi.yaml**  
+   - `X-API-Key` を使った外部APIと、OpenAPI / SDK の設計を確認。
+4. **/app/analytics**  
+   - 日次 / 週次のドキュメント作成数から、チーム利用のKPI設計をざっくり把握。
+5. **docs/**  
+   - 特に `architecture.md`, `operations.md`, `security.md`, `case-study-startup.md` を読むことで、設計〜運用までのストーリーを追えるようになっています。
+
 
 ### Prerequisites
 

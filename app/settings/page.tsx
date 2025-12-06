@@ -52,6 +52,24 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-slate-900">
+            データエクスポート
+          </h2>
+          <p className="text-xs text-slate-600">
+            自分のドキュメント / コメント / アクティビティログ / 通知をまとめて{" "}
+            JSON ファイルとしてダウンロードできます（ベータ機能）。
+          </p>
+          <div className="mt-3">
+            <a
+              href="/api/export"
+              className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-slate-800"
+            >
+              データをエクスポート（JSON）
+            </a>
+          </div>
+        </section>
+
         <DeleteAccountSection deleteAccount={deleteAccount} />
       </main>
     </div>

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { authenticateApiKey, getApiKeyFromHeaders } from "@/lib/apiAuth";
+import { checkRateLimit } from "@/lib/rateLimiter";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/documents
 // シンプルな一覧 API（タイトル / カテゴリ / 要約のみ）
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   if (!supabaseAdmin) {
     return NextResponse.json(
       { error: "Service not configured" },
@@ -21,6 +22,19 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json(
       { error: "Unauthorized: invalid API key" },
       { status: 401 }
+    );
+  }
+
+  const ip =
+    req.headers.get("x-forwarded-for") ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const rateKey = `api-documents:${ip}`;
+
+  if (!checkRateLimit(rateKey)) {
+    return NextResponse.json(
+      { error: "Too Many Requests" },
+      { status: 429 }
     );
   }
 
@@ -47,5 +61,6 @@ export async function GET(_req: NextRequest) {
 
   return NextResponse.json({ documents: data ?? [] });
 }
+
 
 

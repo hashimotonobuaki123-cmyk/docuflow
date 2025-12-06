@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { authenticateApiKey, getApiKeyFromHeaders } from "@/lib/apiAuth";
+import { checkRateLimit } from "@/lib/rateLimiter";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/documents/[id]
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   if (!supabaseAdmin) {
@@ -23,6 +24,19 @@ export async function GET(
     return NextResponse.json(
       { error: "Unauthorized: invalid API key" },
       { status: 401 }
+    );
+  }
+
+  const ip =
+    req.headers.get("x-forwarded-for") ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const rateKey = `api-documents-detail:${ip}`;
+
+  if (!checkRateLimit(rateKey)) {
+    return NextResponse.json(
+      { error: "Too Many Requests" },
+      { status: 429 }
     );
   }
 
@@ -55,5 +69,6 @@ export async function GET(
 
   return NextResponse.json({ document: data[0] });
 }
+
 
 
