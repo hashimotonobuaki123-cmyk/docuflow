@@ -8,6 +8,8 @@ import {
   getRoleDisplayName,
   getRoleBadgeClass,
 } from "@/lib/organizationTypes";
+import type { Locale } from "@/lib/i18n";
+import { useLocale } from "@/lib/useLocale";
 
 type OrganizationWithRole = {
   organization: Organization;
@@ -25,6 +27,7 @@ export function OrganizationSwitcher({
   activeOrganizationId,
   switchAction,
 }: Props) {
+  const locale: Locale = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -50,11 +53,17 @@ export function OrganizationSwitcher({
   if (organizations.length === 0) {
     return (
       <Link
-        href="/settings/organizations"
+        href={
+          locale === "en"
+            ? "/settings/organizations?lang=en"
+            : "/settings/organizations"
+        }
         className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-colors"
       >
         <span className="text-base">🏢</span>
-        <span>組織を作成</span>
+        <span>
+          {locale === "en" ? "Create organization" : "組織を作成"}
+        </span>
       </Link>
     );
   }
@@ -68,7 +77,8 @@ export function OrganizationSwitcher({
       >
         <span className="text-base">🏢</span>
         <span className="max-w-[120px] truncate">
-          {activeOrg?.organization.name || "組織を選択"}
+          {activeOrg?.organization.name ||
+            (locale === "en" ? "Select organization" : "組織を選択")}
         </span>
         <svg
           className={`h-3 w-3 text-slate-400 transition-transform ${
@@ -91,7 +101,7 @@ export function OrganizationSwitcher({
         <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-slate-200 bg-white shadow-lg animate-fade-in">
           <div className="p-2">
             <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-              所属組織
+              {locale === "en" ? "Organizations" : "所属組織"}
             </p>
             <div className="mt-1 space-y-0.5">
               {organizations.map(({ organization, role }) => (
@@ -147,7 +157,11 @@ export function OrganizationSwitcher({
           </div>
           <div className="border-t border-slate-100 p-2">
             <Link
-              href="/settings/organizations"
+              href={
+                locale === "en"
+                  ? "/settings/organizations?lang=en"
+                  : "/settings/organizations"
+              }
               onClick={() => setIsOpen(false)}
               className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
             >
@@ -170,10 +184,16 @@ export function OrganizationSwitcher({
                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                 />
               </svg>
-              <span>組織設定</span>
+              <span>
+                {locale === "en" ? "Organization settings" : "組織設定"}
+              </span>
             </Link>
             <Link
-              href="/settings/organizations?action=new"
+              href={
+                locale === "en"
+                  ? "/settings/organizations?action=new&lang=en"
+                  : "/settings/organizations?action=new"
+              }
               onClick={() => setIsOpen(false)}
               className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-emerald-600 hover:bg-emerald-50 transition-colors"
             >
@@ -190,7 +210,11 @@ export function OrganizationSwitcher({
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>新しい組織を作成</span>
+              <span>
+                {locale === "en"
+                  ? "Create new organization"
+                  : "新しい組織を作成"}
+              </span>
             </Link>
           </div>
         </div>
