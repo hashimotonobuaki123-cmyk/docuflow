@@ -217,13 +217,20 @@ async function createDocument(formData: FormData) {
 }
 
 type PageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     lang?: string;
-  };
+  }>;
 };
 
-export default function NewDocumentPage({ searchParams }: PageProps) {
-  const locale: Locale = getLocaleFromParam(searchParams?.lang);
+export default async function NewDocumentPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const locale: Locale = getLocaleFromParam(params?.lang);
+  console.log(
+    "[NewDocumentPage] lang param =",
+    params?.lang,
+    "=> locale =",
+    locale,
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/20">
