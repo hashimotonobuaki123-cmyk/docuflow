@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -81,8 +87,8 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
   );
 }
 
-// Toast管理用のカスタムフック
-export function useToast() {
+// 内部用: Toast の状態管理フック
+function useToastInternal() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const showToast = (
@@ -100,16 +106,46 @@ export function useToast() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  return {
-    toasts,
-    showToast,
-    closeToast,
-    success: (title: string, message?: string) =>
-      showToast("success", title, message),
-    error: (title: string, message?: string) =>
-      showToast("error", title, message),
-    info: (title: string, message?: string) => showToast("info", title, message),
-    warning: (title: string, message?: string) =>
-      showToast("warning", title, message),
-  };
+  return { toasts, showToast, closeToast };
 }
+
+type ToastContextValue = {
+  addToast: (input: {
+    type: ToastType;
+    title: string;
+    message?: string;
+    duration?: number;
+  }) => void;
+};
+
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const { toasts, showToast, closeToast } = useToastInternal();
+
+  const addToast: ToastContextValue["addToast"] = ({
+    type,
+    title,
+    message,
+    duration,
+  }) => {
+    showToast(type, title, message, duration);
+  };
+
+  return (
+    <ToastContext.Provider value={{ addToast }}>
+      {children}
+      <ToastContainer toasts={toasts} onClose={closeToast} />
+    </ToastContext.Provider>
+  );
+}
+
+// コンポーネント側から利用するためのフック
+export function useToast(): ToastContextValue {
+  const ctx = useContext(ToastContext);
+  if (!ctx) {
+    throw new Error("useToast must be used within a ToastProvider");
+  }
+  return ctx;
+}
+
