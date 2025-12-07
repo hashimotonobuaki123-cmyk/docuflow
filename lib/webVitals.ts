@@ -3,7 +3,7 @@
  * パフォーマンスを監視し、ユーザー体験を可視化
  */
 
-import { getCLS, getFID, getFCP, getLCP, getTTFB, Metric } from "web-vitals";
+import type { Metric } from "web-vitals";
 
 // パフォーマンスメトリクスの閾値（Good / Needs Improvement / Poor）
 const THRESHOLDS = {
@@ -69,11 +69,25 @@ async function sendToAnalytics(metric: Metric) {
  * Web Vitalsの計測を開始
  */
 export function initWebVitals() {
-  getCLS(sendToAnalytics);
-  getFID(sendToAnalytics);
-  getFCP(sendToAnalytics);
-  getLCP(sendToAnalytics);
-  getTTFB(sendToAnalytics);
+  // web-vitals v4 以降では onCLS/onFID 形式のAPIが推奨
+  // 動的インポートにして型エラーを避けつつ、ブラウザ側だけで実行
+  import("web-vitals")
+    .then((mod: any) => {
+      const onCLS = mod.onCLS ?? mod.getCLS;
+      const onFID = mod.onFID ?? mod.getFID;
+      const onFCP = mod.onFCP ?? mod.getFCP;
+      const onLCP = mod.onLCP ?? mod.getLCP;
+      const onTTFB = mod.onTTFB ?? mod.getTTFB;
+
+      onCLS && onCLS(sendToAnalytics);
+      onFID && onFID(sendToAnalytics);
+      onFCP && onFCP(sendToAnalytics);
+      onLCP && onLCP(sendToAnalytics);
+      onTTFB && onTTFB(sendToAnalytics);
+    })
+    .catch((error) => {
+      console.error("Failed to init Web Vitals:", error);
+    });
 }
 
 /**
