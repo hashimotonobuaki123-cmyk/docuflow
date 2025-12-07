@@ -343,3 +343,5 @@ const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
 
 **Findy 偏差値80以上を狙える状態**に到達しました！🎉
 
+
+

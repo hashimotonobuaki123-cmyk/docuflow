@@ -45,7 +45,7 @@ DocuFlow の運用・デプロイに関するガイドラインです。
 | Vercel | フロントエンド・API | https://docuflow-azure.vercel.app |
 | Supabase | データベース・認証 | https://[project].supabase.co |
 | OpenAI | AI 要約・タグ生成 | api.openai.com |
-| GitHub Actions | CI / Supabase Migrations / Lighthouse CI | https://github.com/hashimotonobuaki123-cmyk/docuflow |
+| GitHub Actions | CI / Supabase Migrations / Lighthouse CI | https://github.com/AyumuKobayashiproducts/docuflow |
 
 ### 環境変数
 
@@ -254,6 +254,54 @@ const supabaseAdmin = createClient(url, serviceRoleKey, {
 - [ ] 新テーブルに RLS が有効か確認
 - [ ] 機密情報が環境変数で管理されているか確認
 - [ ] API キーのローテーションが必要か確認
+
+---
+
+## 🚨 インシデント対応プレイブック
+
+DocuFlow で障害や重大なエラーが発生した際の、**最初の 30 分間の動き方** を簡易プレイブックとしてまとめます。
+
+### ステータスの定義
+
+- 🟢 **稼働中**: 主要機能（ログイン / ドキュメント閲覧 / 検索）が正常
+- 🟡 **一部障害**: 一部機能（例: 共有リンク発行 / 通知）が不安定
+- 🔴 **重大障害**: ログイン不可、またはドキュメント閲覧不可
+
+ダッシュボード上部のステータスバッジ（🟢 稼働中 など）は、  
+運用者がこの定義に従って手動で切り替えることを想定しています。
+
+### 最初の 30 分でやること
+
+1. **検知**
+   - Vercel / Supabase / Sentry のダッシュボードを確認
+   - `/app/vitals` ページで Web Vitals とエラーレート（サンプル指標）を確認
+2. **影響範囲の把握**
+   - 影響を受ける機能（ログイン / アップロード / 検索 / 共有リンク）を列挙
+   - 再現手順を 1 〜 2 パターンにまとめる
+3. **ステータス更新**
+   - GitHub Issues で `incident` ラベル付き Issue を 1 件作成
+   - ダッシュボードのステータス表示を 🟡 または 🔴 に変更（将来的に自動化も検討）
+4. **暫定対応**
+   - Supabase 障害時は「読み取り専用運用」（新規アップロードと削除を一時停止）
+   - AI（OpenAI）障害時は、`lib/ai.ts` のフォールバックで運用継続（要約の簡略化など）
+
+### 簡易インシデントレポート（テンプレ）
+
+```text
+タイトル: [incident] DocuFlow ログイン障害
+発生時刻: 2025-12-07 10:23 (JST)
+検知方法: Sentry アラート / ユーザー報告
+影響範囲: /auth/login 〜 /app への遷移
+現在のステータス: 🟡 一部障害
+
+暫定対応:
+- Supabase Auth のステータス確認
+- 再試行ロジックで一時的にリトライ上限を緩和
+
+次のアクション:
+- 障害復旧後、発生期間のログを確認
+- docs/operations.md のプレイブック更新（教訓の反映）
+```
 
 ---
 

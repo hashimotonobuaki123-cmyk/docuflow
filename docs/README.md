@@ -42,7 +42,7 @@
 ## 🔗 クイックリンク
 
 - [🌐 Live Demo](https://docuflow-azure.vercel.app)
-- [📂 GitHub Repository](https://github.com/hashimotonobuaki123-cmyk/docuflow)
+- [📂 GitHub Repository](https://github.com/AyumuKobayashiproducts/docuflow)
 - [📋 機能仕様書](spec-docuflow.md)
 - [🗄️ DB スキーマ](db-schema.md)
 

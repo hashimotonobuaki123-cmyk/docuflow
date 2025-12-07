@@ -568,6 +568,11 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
 
   // テスト環境やビルド時にも安定するよう、現在時刻はモジュール外で一度だけ評価して渡す
   const createdLast30Days = countDocumentsCreatedLast30Days(allDocuments);
+  const activeMemberCount = new Set(
+    recentActivities
+      .map((a) => a.document_id)
+      .filter((id): id is string => !!id && id.length > 0)
+  ).size;
   const categoryCount = Array.from(
     new Set(
       allDocuments
@@ -720,6 +725,11 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                 activeOrganizationId={activeOrgId}
                 switchAction={switchOrganization}
               />
+              {/* 簡易ステータスバッジ（運用ポリシーの可視化用） */}
+              <span className="hidden items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                稼働中
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[11px] text-slate-500">
@@ -838,6 +848,15 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                   共有中
                 </dt>
                 <dd className="font-semibold text-slate-700">{sharedCount} 件</dd>
+              </div>
+              <div className="flex items-center justify-between text-slate-500">
+                <dt className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                  最近アクティブなドキュメント
+                </dt>
+                <dd className="font-semibold text-slate-700">
+                  {activeMemberCount} 件
+                </dd>
               </div>
               <div className="flex items-center justify-between text-slate-500">
                 <dt className="flex items-center gap-1">

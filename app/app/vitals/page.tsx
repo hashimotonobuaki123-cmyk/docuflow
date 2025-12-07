@@ -127,6 +127,47 @@ export default function WebVitalsPage() {
           </div>
         </section>
 
+        {/* Error & Availability Sample */}
+        <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-slate-900">
+            エラーと稼働率（サンプル指標）
+          </h2>
+          <p className="mb-4 text-sm text-slate-600">
+            本番環境では Sentry や Supabase のメトリクスと連携し、
+            「過去24時間のエラー件数」や「直近30日稼働率」をここに表示する想定です。
+            現状は運用設計を示すためのサンプル値を表示しています。
+          </p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="card p-4">
+              <p className="text-xs font-medium text-slate-500 mb-1">
+                過去24時間のアプリケーションエラー
+              </p>
+              <p className="text-2xl font-bold text-slate-900">0 件</p>
+              <p className="mt-1 text-[11px] text-emerald-600">
+                目標: 10 件 / 日 未満（エラーバジェット内）
+              </p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs font-medium text-slate-500 mb-1">
+                直近30日の稼働率
+              </p>
+              <p className="text-2xl font-bold text-slate-900">99.9%</p>
+              <p className="mt-1 text-[11px] text-slate-600">
+                SLO: 99.5% 以上を目標とした設計
+              </p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs font-medium text-slate-500 mb-1">
+                重大インシデント
+              </p>
+              <p className="text-2xl font-bold text-slate-900">0 件</p>
+              <p className="mt-1 text-[11px] text-slate-600">
+                発生時は docs/operations.md のインシデントプレイブックに従って対応
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Info Card */}
         <div className="card p-6 bg-gradient-to-br from-blue-50 to-sky-50">
           <div className="flex items-start gap-4">

@@ -20,7 +20,7 @@ DocuFlow へのコントリビューションありがとうございます！�
 
 ### 必要な環境
 
-- Node.js 18.x 以上
+- Node.js 22.x 以上
 - npm または yarn
 - Git
 
@@ -28,7 +28,7 @@ DocuFlow へのコントリビューションありがとうございます！�
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/your-org/docuflow.git
+git clone https://github.com/AyumuKobayashiproducts/docuflow.git
 cd docuflow
 
 # 依存関係をインストール

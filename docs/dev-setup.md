@@ -85,6 +85,22 @@ SUPABASE_DB_URL=postgres://postgres:YOUR_PASSWORD@YOUR_PROJECT.supabase.co:5432/
 
 ## 6. 開発サーバーの起動
 
+### 6.1 最速スタート（デモデータ込み・推奨）
+
+新しく参加した開発メンバーは、まずこのコマンドだけ叩けば OK です。
+
+```bash
+make dev-seed
+```
+
+- `supabase/migrations` のスキーマを前提とした DB
+- `scripts/seed-demo-data.ts` によるデモデータ投入
+- Next.js 開発サーバー起動（`http://localhost:3000`）
+
+まで、**1 コマンドでまとめて実行** します。
+
+### 6.2 手動で起動する場合
+
 ```bash
 npm run dev
 ```
@@ -98,9 +114,51 @@ npm run dev
 
 ---
 
-## 7. テストの実行
+## 7. Google ログイン（Google OAuth）設定の概要
 
-### 7.1 ユニットテスト（Vitest）
+Google ログインを有効にするための **最小構成の流れ** をまとめます。
+
+### 7.1 Google Cloud Console 側の設定
+
+1. [Google Cloud Console](https://console.cloud.google.com/) で新規プロジェクトを作成
+2. 左メニュー「API とサービス」→「OAuth 同意画面」
+   - ユーザータイプ: External
+   - アプリ名 / サポートメールを入力し保存
+3. 「認証情報」→「認証情報を作成」→「OAuth クライアント ID」
+   - 種類: ウェブアプリケーション
+   - 承認済みリダイレクト URI に Supabase のコールバック URL を登録  
+     例: `https://<your-project>.supabase.co/auth/v1/callback`
+4. 発行された `クライアント ID` / `クライアント シークレット` を控える
+
+### 7.2 Supabase プロジェクト側の設定
+
+1. Supabase ダッシュボード → Authentication → Settings → External OAuth
+2. 「Google」 を有効化し、先ほど控えた
+   - Client ID
+   - Client Secret
+   を入力して保存
+3. `NEXT_PUBLIC_SITE_URL` が Vercel の URL（例: `https://docuflow-azure.vercel.app`）になっていることを確認
+
+### 7.3 アプリ側の挙動
+
+- `/auth/login` の「Google でログイン」ボタンから  
+  `supabase.auth.signInWithOAuth({ provider: "google", ... })` を実行
+- Supabase で OAuth が成功すると `/auth/callback` に戻り、
+  - Supabase セッションを取得
+  - `docuhub_ai_auth=1` / `docuhub_ai_user_id=<uuid>` を Cookie にセット
+  - `/app` にリダイレクト
+
+動作しない場合は、以下を確認してください:
+
+- Supabase の「Site URL」「Redirect URL」が Vercel 側 URL と一致しているか
+- Google Cloud Console のリダイレクト URL が Supabase のものと一致しているか
+- ブラウザのサードパーティ Cookie ブロック設定
+
+---
+
+## 8. テストの実行
+
+### 8.1 ユニットテスト（Vitest）
 
 ```bash
 npm test
@@ -109,7 +167,7 @@ npm test
 npm run test:coverage
 ```
 
-### 7.2 E2E テスト（Playwright）
+### 8.2 E2E テスト（Playwright）
 
 ```bash
 # 初回のみブラウザをインストール
@@ -123,7 +181,5 @@ npm run test:e2e:ui
 ```
 
 E2E テストではログイン状態やデモデータの有無に依存するケースがあるため、  
-
-
-
+事前に `make dev-seed` で環境を準備してから実行することを推奨します。
 

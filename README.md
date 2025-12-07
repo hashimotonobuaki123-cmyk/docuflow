@@ -36,9 +36,15 @@
 
 ### 🌍 English Summary
 
-> **DocuFlow** is an AI-powered document workspace that transforms how teams organize knowledge.  
-> Drop a PDF or Word file, and AI instantly generates summaries, tags, and searchable content.  
-> Built with Next.js 16, Supabase, and OpenAI — designed for modern, async-first teams.
+> **DocuFlow** is an AI-powered document workspace that cuts search time from minutes to seconds.  
+> Upload a PDF or Word file, and AI auto-generates summaries, tags, and embeddings for semantic search.  
+> Production-ready SaaS architecture with RBAC, Billing, Analytics, OpenAPI, and full CI/CD — built on Next.js 16, Supabase, and OpenAI.
+
+#### このプロジェクトで伝えたい 3 つのポイント
+
+- **AI × ベクトル検索で「探す時間」を 10 分 → 数十秒レベルまで短縮できる設計**
+- **Organizations / RBAC / Billing / Analytics まで含めた「本番運用を想定した SaaS アーキテクチャ」**
+- **Web Vitals / Lighthouse CI / E2E / OpenAPI / SDK / Docs までそろえた「品質と開発体験」**
 
 ---
 
@@ -55,20 +61,21 @@
 
 ## 💡 About
 
-**DocuFlow** は、AI を活用した次世代のドキュメント管理プラットフォームです。
+**DocuFlow** は、「ドキュメントを探す時間」をゼロに近づける AI ドキュメントワークスペースです。
 
-会議メモ、仕様書、企画書などのドキュメントをドラッグ＆ドロップするだけで、AI が自動的に内容を分析し、**要約**・**タグ付け**・**タイトル生成**を実行。煩雑なドキュメント整理を劇的に効率化します。
+PDF や Word をドロップするだけで、AI が **要約 → タグ付け → ベクトル埋め込み** まで自動実行。  
+あとは検索バーに聞くだけ——キーワードでも自然言語でも、欲しい情報に数秒でたどり着けます。
 
 <br />
 
 <div align="center">
 
-| 🎯 課題 | ✨ DocuFlow の解決策 |
-|:---:|:---:|
-| ドキュメントが増えると探せない | AI が自動でタグ付け & 全文検索 |
-| 要約を書くのが面倒 | GPT-4 が 3〜5 行で自動要約 |
-| PDF・Word の中身が検索できない | テキスト抽出して検索可能に |
-| 共有が手間 | ワンクリックで共有リンク発行 |
+| 🎯 よくある課題 | ✨ DocuFlow の解決策 |
+|:---|:---|
+| ドキュメントが増えると探せない | AI タグ付け + ベクトル検索で **検索時間 1/10 以下** |
+| 要約を書く時間がない | GPT-4 が **3〜5 行で自動要約** |
+| PDF・Word の中身が検索できない | テキスト抽出 → 全文 + セマンティック検索 |
+| 共有が面倒 | **ワンクリックで公開リンク発行**、いつでも停止可 |
 
 </div>
 
@@ -83,6 +90,12 @@
 </div>
 
 デモ環境には **15件以上のサンプルドキュメント** （仕様書・議事録・企画書・レポート・マニュアル）が登録されています。以下の流れで、DocuFlow の AI 機能をぜひ体験してください！
+
+### 🔎 Quick Links for Reviewers / 面接官向けショートカット
+
+- `/app` – メインダッシュボード（AI 要約・インサイト・通知ベル）
+- `/settings/organizations` – 組織 / RBAC（Owner / Admin / Member）
+- `/app/whats-new` & `docs/case-study-startup.md` – 開発の継続性とユースケース
 
 ### 📋 おすすめの試し方
 
@@ -256,6 +269,43 @@ Push → Lint → Type Check → Unit Test → Build → E2E Test → Lighthouse
 
 <br />
 
+## ⚖️ Non-Goals / Limitations
+
+あえて「まだ対応していないこと」や「スコープ外としていること」も明示します。
+
+- **大規模マルチテナント（何万組織）** は現時点ではスコープ外  
+  - Supabase 単一プロジェクト + RLS を前提とした、中小規模チーム向けの設計です。
+- **リアルタイム共同編集**（Google Docs 的な同時編集）は未対応  
+  - コメント機能と通知（Notifications）でカバーし、シンプルさと実装コストのバランスを優先しています。
+- **AI モデル / プロンプトの UI からの切り替え** は未提供  
+  - 現状は `.env` とコードで管理し、「まずは安定したデモ体験」を優先しています。
+
+これらは「やっていない」だけでなく、「なぜ今はやらないか」を含めて設計判断しています。
+
+<br />
+
+## 🔐 Authentication & Security Overview
+
+DocuFlow は **Supabase Auth + RLS(PostgreSQL Row Level Security)** を前提に設計された、  
+チーム利用向けのドキュメントワークスペースです。
+
+- **認証 (Authentication)**  
+  - メールアドレス & パスワード / Google OAuth をサポート  
+  - Supabase Auth によるセッション管理 + `middleware.ts` でのルート保護  
+- **認可 (Authorization)**  
+  - `organizations` / `organization_members` による RBAC（owner / admin / member）  
+  - `documents`, `activity_logs`, `notifications` など、主要テーブルで RLS を有効化  
+- **共有と公開範囲**  
+  - UUID ベースの共有リンク (`share_token`) による閲覧専用ビュー  
+  - 共有リンクはいつでも無効化可能で、編集は常に認証済みユーザーのみ  
+- **監査ログ / 監視**  
+  - 重要な操作は `activity_logs` に記録  
+  - Web Vitals / Lighthouse CI / Playwright による品質ゲート
+
+詳しくは `docs/security.md` および `docs/operations.md` を参照してください。
+
+<br />
+
 ## 📸 Screenshots
 
 <div align="center">
@@ -365,6 +415,10 @@ DocuFlow の「SaaSとしての完成度」を素早く確認したい人向け�
 5. **docs/**  
    - 特に `architecture.md`, `operations.md`, `security.md`, `case-study-startup.md` を読むことで、設計〜運用までのストーリーを追えるようになっています。
 
+> 📚 **Case Study**  
+> 実際の 10 人規模スタートアップ導入を想定したストーリーは  
+> `docs/case-study-startup.md` にまとめています。
+
 
 ### Prerequisites
 
@@ -416,6 +470,19 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 より詳しいセットアップ手順は `docs/dev-setup.md` を参照してください。
+
+<br />
+
+## 👤 Role & Responsibility
+
+このリポジトリは、**個人開発プロジェクト** として以下の範囲を一貫して担当しています。
+
+- **プロダクト企画 / UX 設計**: 「AI 要約 × ベクトル検索 × チーム利用」を前提にした画面構成・導線設計
+- **アーキテクチャ / インフラ設計**: Next.js 16 App Router、Supabase(PostgreSQL + RLS)、Stripe、OpenAI などの選定と統合
+- **アプリケーション実装**: 認証・組織/RBAC・通知・アナリティクス・Billing・API・SDK・PWA まで
+- **品質保証 / 運用設計**: E2E テスト、Lighthouse CI、Web Vitals、Supabase Migrations CI、Security / Operations ドキュメント
+
+チーム開発を想定しつつも、1 人で「プロダクトとしてどこまで作り込めるか」を示すことをゴールにしています。
 
 <br />
 

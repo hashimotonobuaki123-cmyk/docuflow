@@ -105,10 +105,44 @@ export default function WhatsNewPage() {
               </li>
             </ul>
           </article>
+
+          {/* Coming Soon */}
+          <article className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-5 text-xs text-slate-800 shadow-sm">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">
+                Coming Soon（今後追加したいもの）
+              </h2>
+              <span className="text-[10px] text-sky-700">Roadmap</span>
+            </div>
+            <p className="mb-2 text-[11px] text-slate-600">
+              実装までは至っていないものの、「次に取り組む候補」として検討しているアイデアです。
+              設計ドキュメントや ADR に沿って、段階的に追加していく想定です。
+            </p>
+            <ul className="list-disc space-y-1 pl-4">
+              <li>
+                Security ADR に沿った
+                <strong> 2FA（TOTP）実装 </strong>
+                と、組織単位で有効化できる
+                <strong> SSO (Google Workspace / Entra ID) </strong>
+              </li>
+              <li>
+                ドキュメント間をつなぐ
+                <strong> 双方向リンク / 関連ドキュメント表示 </strong>
+                によるナレッジグラフ的な閲覧体験
+              </li>
+              <li>
+                Slack など外部ツールへの
+                <strong> 通知連携（コメント/メンション/共有リンク発行）</strong>
+                と Webhook ベースの拡張
+              </li>
+            </ul>
+          </article>
         </section>
       </main>
     </div>
   );
 }
+
+
 
 
