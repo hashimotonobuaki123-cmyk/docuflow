@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import dynamic from "next/dynamic";
 import "./globals.css";
-import { ToastProvider } from "@/components/Toast";
-
-// 遅延読み込みでパフォーマンス改善
-const CommandPalette = dynamic(() => import("@/components/CommandPalette").then(mod => mod.CommandPalette), { ssr: false });
-const KeyboardShortcutsHelp = dynamic(() => import("@/components/KeyboardShortcutsHelp").then(mod => mod.KeyboardShortcutsHelp), { ssr: false });
-const ServiceWorkerRegistration = dynamic(() => import("@/components/ServiceWorkerRegistration").then(mod => mod.ServiceWorkerRegistration), { ssr: false });
-const PWAInstallPrompt = dynamic(() => import("@/components/PWAInstallPrompt").then(mod => mod.PWAInstallPrompt), { ssr: false });
+import { AppClientShell } from "@/components/AppClientShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -92,13 +85,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200`}
       >
-        <ToastProvider>
-          {children}
-          <CommandPalette />
-          <KeyboardShortcutsHelp />
-          <ServiceWorkerRegistration />
-          <PWAInstallPrompt />
-        </ToastProvider>
+        <AppClientShell>{children}</AppClientShell>
       </body>
     </html>
   );
