@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // GET /api/documents/[id]
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!supabaseAdmin) {
     return NextResponse.json(
@@ -40,7 +40,7 @@ export async function GET(
     );
   }
 
-  const id = params.id;
+  const { id } = await params;
 
   let query = supabaseAdmin
     .from("documents")
