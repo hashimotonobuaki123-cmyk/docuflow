@@ -136,6 +136,20 @@ type Document = {
   share_token?: string | null;
 };
 
+// Safe tags getter - handles string, array, or null
+function getTagsArray(tags: unknown): string[] {
+  if (Array.isArray(tags)) return tags.filter((t): t is string => typeof t === "string");
+  if (typeof tags === "string") {
+    try {
+      const parsed = JSON.parse(tags);
+      if (Array.isArray(parsed)) return parsed.filter((t): t is string => typeof t === "string");
+    } catch {
+      // Not JSON, return empty
+    }
+  }
+  return [];
+}
+
 type ActivityLog = {
   id: string;
   action: string;
@@ -730,20 +744,23 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                       )}
 
                       {/* Tags */}
-                      {Array.isArray(doc.tags) && doc.tags.length > 0 && (
-                        <div className="mb-4 flex flex-wrap gap-1.5">
-                          {doc.tags.slice(0, 4).map((tag) => (
-                            <Link
-                              key={tag}
-                              href={`/app?q=${encodeURIComponent(tag)}${langParam}`}
-                              className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors"
-                            >
-                              #{tag}
-                            </Link>
-                          ))}
-                          {doc.tags.length > 4 && <span className="text-[11px] text-slate-400">+{doc.tags.length - 4}</span>}
-                        </div>
-                      )}
+                      {(() => {
+                        const tagsArr = getTagsArray(doc.tags);
+                        return tagsArr.length > 0 ? (
+                          <div className="mb-4 flex flex-wrap gap-1.5">
+                            {tagsArr.slice(0, 4).map((tag) => (
+                              <Link
+                                key={tag}
+                                href={`/app?q=${encodeURIComponent(tag)}${langParam}`}
+                                className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors"
+                              >
+                                #{tag}
+                              </Link>
+                            ))}
+                            {tagsArr.length > 4 && <span className="text-[11px] text-slate-400">+{tagsArr.length - 4}</span>}
+                          </div>
+                        ) : null;
+                      })()}
 
                       {/* Footer */}
                       <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
