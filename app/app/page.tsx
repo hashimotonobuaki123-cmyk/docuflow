@@ -640,17 +640,17 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                       
                       {/* Status Icons */}
                       <div className="absolute top-4 right-4 flex items-center gap-1.5">
-                        {doc.is_pinned && (
+                        {Boolean(doc.is_pinned) && (
                           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-50 text-amber-600 dark:bg-amber-900/30">
                             <Pin className="h-3.5 w-3.5" />
                           </span>
                         )}
-                        {doc.is_favorite && (
+                        {Boolean(doc.is_favorite) && (
                           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-50 text-rose-500 dark:bg-rose-900/30">
                             <Star className="h-3.5 w-3.5 fill-current" />
                           </span>
                         )}
-                        {doc.share_token && (
+                        {Boolean(doc.share_token) && (
                           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">
                             <Share2 className="h-3.5 w-3.5" />
                           </span>
@@ -674,7 +674,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                         </Link>
                         <div className="mt-2 flex items-center gap-2 flex-wrap">
                           {doc.category && <Badge variant={getCategoryBadgeVariant(doc.category)} size="sm">{doc.category}</Badge>}
-                          {doc.is_archived && (
+                          {Boolean(doc.is_archived) && (
                             <Badge variant="default" size="sm">
                               <Archive className="h-3 w-3 mr-1" />
                               {locale === "en" ? "Archived" : "アーカイブ"}
@@ -684,7 +684,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                       </div>
 
                       {/* Summary */}
-                      {doc.summary && (
+                      {Boolean(doc.summary) && (
                         <p className="mb-4 text-sm text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">{doc.summary}</p>
                       )}
 
@@ -711,7 +711,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                           <div className="flex items-center gap-3 text-xs text-slate-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3.5 w-3.5" />
-                              {formatJstDateTime(doc.created_at)?.split(" ")[0]}
+                              {formatJstDateTime(doc.created_at as string | null)?.split(" ")[0]}
                             </span>
                             <span className="flex items-center gap-1">
                               <FileText className="h-3.5 w-3.5" />
