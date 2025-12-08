@@ -36,6 +36,19 @@
 
 </div>
 
+## 🇯🇵 日本語での概要
+
+DocuFlow は、**PDF / Word などのドキュメントを AI 要約・タグ付けして整理するためのワークスペース**です。
+
+- ✅ ドキュメント本文から **3〜5行の要約** と **最大3つのタグ** を自動生成  
+- ✅ OpenAI + pgvector を使った **意味ベース検索（ベクトル検索）**  
+- ✅ 組織・ロール（Owner / Admin / Member）対応の **チーム向けマルチテナント設計**  
+- ✅ Supabase / Next.js 16 / TypeScript / Vitest / Playwright / Lighthouse CI などを用いた **本番運用を意識した SaaS 設計**
+
+デモ環境ではサンプルドキュメントが多数用意されており、  
+`/app?lang=ja` と `/app?lang=en` を切り替えることで、**日本語 / 英語 UI の両方**を確認できます。
+
+
 ## 🎯 Problem → Solution
 
 | 🎯 Common Problem | ✨ How DocuFlow Solves It |
@@ -101,6 +114,26 @@ The demo environment includes **15+ sample documents** (specs, meeting notes, pr
 ```
 
 > 💡 **Tip**: You can also search with natural language like "How does user registration work?"
+
+<br />
+
+## 🖼️ UI Screenshots
+
+<div align="center">
+
+### Main Screens (English UI)
+
+<img src="docs/screenshots/dashboard.png" alt="Dashboard – Document workspace" width="90%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);" />
+<br /><br />
+<img src="docs/screenshots/new-document.png" alt="New document – AI-powered creation form" width="90%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);" />
+<br /><br />
+<img src="docs/screenshots/document-detail.png" alt="Document detail – summary, tags, versions" width="90%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);" />
+<br /><br />
+<img src="docs/screenshots/settings.png" alt="Settings – account, organizations, security" width="90%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);" />
+<br /><br />
+<img src="docs/screenshots/share-view.png" alt="Public share view – read-only document" width="90%" style="border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);" />
+
+</div>
 
 <br />
 
