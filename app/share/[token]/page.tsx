@@ -9,9 +9,9 @@ type PageProps = {
   params: Promise<{
     token: string;
   }>;
-  searchParams?: {
+  searchParams: Promise<{
     lang?: string;
-  };
+  }>;
 };
 
 export default async function PublicSharePage({
@@ -19,7 +19,8 @@ export default async function PublicSharePage({
   searchParams,
 }: PageProps) {
   const { token } = await params;
-  const locale: Locale = getLocaleFromParam(searchParams?.lang);
+  const resolvedSearchParams = await searchParams;
+  const locale: Locale = getLocaleFromParam(resolvedSearchParams?.lang);
 
   const { data, error } = await supabase
     .from("documents")

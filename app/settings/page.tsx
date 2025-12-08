@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Logo } from "@/components/Logo";
 import { AccountInfoCard } from "@/components/AccountInfoCard";
 import { DeleteAccountSection } from "../app/DeleteAccountSection";
@@ -7,13 +8,14 @@ import type { Locale } from "@/lib/i18n";
 import { getLocaleFromParam } from "@/lib/i18n";
 
 type SettingsPageProps = {
-  searchParams?: {
+  searchParams: Promise<{
     lang?: string;
-  };
+  }>;
 };
 
-export default function SettingsPage({ searchParams }: SettingsPageProps) {
-  const locale: Locale = getLocaleFromParam(searchParams?.lang);
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const locale: Locale = getLocaleFromParam(resolvedSearchParams?.lang);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -29,7 +31,9 @@ export default function SettingsPage({ searchParams }: SettingsPageProps) {
       </header>
 
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-        <AccountInfoCard />
+        <Suspense fallback={<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm animate-pulse h-32" />}>
+          <AccountInfoCard />
+        </Suspense>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">
@@ -143,7 +147,9 @@ export default function SettingsPage({ searchParams }: SettingsPageProps) {
           </div>
         </section>
 
-        <DeleteAccountSection deleteAccount={deleteAccount} />
+        <Suspense fallback={<div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 animate-pulse h-24" />}>
+          <DeleteAccountSection deleteAccount={deleteAccount} />
+        </Suspense>
       </main>
     </div>
   );
