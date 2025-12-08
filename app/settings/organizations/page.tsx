@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Logo } from "@/components/Logo";
+import { supabase } from "@/lib/supabaseClient";
 import {
   getUserOrganizations,
   createOrganization,
@@ -115,12 +116,30 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
   let selectedOrg = null;
   let members: { user_id: string; role: OrganizationRole; created_at: string }[] = [];
   let userRole: OrganizationRole | null = null;
+  let orgDocumentCount = 0;
+  let orgActivityCount = 0;
 
   if (selectedOrgId) {
     selectedOrg = organizations.find((o) => o.id === selectedOrgId);
     if (selectedOrg) {
       members = await getOrganizationMembers(selectedOrgId);
       userRole = await getUserRoleInOrganization(userId, selectedOrgId);
+      
+      // 組織のドキュメント数を取得
+      const { count: docCount } = await supabase
+        .from("documents")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", selectedOrgId);
+      orgDocumentCount = docCount ?? 0;
+      
+      // 組織のアクティビティ数（直近30日）を取得
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { count: actCount } = await supabase
+        .from("activity_logs")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", thirtyDaysAgo.toISOString());
+      orgActivityCount = actCount ?? 0;
     }
   }
 
@@ -351,6 +370,84 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
               </span>
             </div>
 
+            {/* 使用量メーター */}
+            <div className="mb-6 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                      {locale === "en" ? "Documents" : "ドキュメント"}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900">{orgDocumentCount}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-lg">
+                    📄
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="h-1.5 w-full rounded-full bg-slate-100">
+                    <div
+                      className="h-1.5 rounded-full bg-emerald-500"
+                      style={{ width: `${Math.min(100, (orgDocumentCount / 100) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {locale === "en" ? "No limit on Free plan" : "Free プランは無制限"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                      {locale === "en" ? "Members" : "メンバー"}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900">{members.length}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-50 text-lg">
+                    👥
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="h-1.5 w-full rounded-full bg-slate-100">
+                    <div
+                      className="h-1.5 rounded-full bg-sky-500"
+                      style={{ width: `${Math.min(100, (members.length / 10) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {locale === "en" ? "Up to 10 on Free plan" : "Free プランは 10 名まで"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                      {locale === "en" ? "Activity (30d)" : "アクティビティ (30日)"}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900">{orgActivityCount}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50 text-lg">
+                    📊
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="h-1.5 w-full rounded-full bg-slate-100">
+                    <div
+                      className="h-1.5 rounded-full bg-violet-500"
+                      style={{ width: `${Math.min(100, (orgActivityCount / 500) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {locale === "en" ? "Actions in last 30 days" : "過去30日間の操作数"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* メンバー一覧 */}
             <div className="mb-6">
               <h3 className="mb-3 text-sm font-semibold text-slate-900">
@@ -395,6 +492,75 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* ロール権限の説明 */}
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">
+                {locale === "en" ? "Role Permissions" : "ロールと権限"}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg bg-white p-3 border border-emerald-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs">👑</span>
+                    <span className="text-xs font-semibold text-emerald-700">Owner</span>
+                  </div>
+                  <ul className="space-y-1 text-[10px] text-slate-600">
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "Delete organization" : "組織の削除"}
+                    </li>
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "Manage billing" : "課金設定の管理"}
+                    </li>
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "All admin permissions" : "全ての管理者権限"}
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-lg bg-white p-3 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs">⚙️</span>
+                    <span className="text-xs font-semibold text-blue-700">Admin</span>
+                  </div>
+                  <ul className="space-y-1 text-[10px] text-slate-600">
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "Invite members" : "メンバーの招待"}
+                    </li>
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "Remove members" : "メンバーの削除"}
+                    </li>
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "All member permissions" : "全てのメンバー権限"}
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-lg bg-white p-3 border border-slate-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs">👤</span>
+                    <span className="text-xs font-semibold text-slate-700">Member</span>
+                  </div>
+                  <ul className="space-y-1 text-[10px] text-slate-600">
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "View all documents" : "ドキュメントの閲覧"}
+                    </li>
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "Create documents" : "ドキュメントの作成"}
+                    </li>
+                    <li className="flex items-center gap-1">
+                      <span className="text-emerald-500">✓</span>
+                      {locale === "en" ? "Comment & share" : "コメント・共有"}
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
 

@@ -1,58 +1,68 @@
-## 📚 Case Study - 10人スタートアップでの DocuFlow 導入
+# 📚 Case Study – Introducing DocuFlow at a 10-Person Startup
 
-このケーススタディは、10人規模の SaaS スタートアップが DocuFlow を導入した、という想定シナリオです。
-
----
-
-## 1. Before - 導入前の課題
-
-- 仕様書は GitHub Wiki、議事録は Google Docs、企画書は Notion、と **情報の置き場がバラバラ**。
-- 「あのAPI仕様どこ？」という質問が週に何度も発生し、**検索に毎回5〜10分** かかっていた。
-- 新メンバーのオンボーディングで、**過去の議事録や提案資料を探すだけで半日** 潰れることがあった。
+This case study describes a hypothetical scenario where a 10-person SaaS startup adopts DocuFlow to solve their document management challenges.
 
 ---
 
-## 2. After - DocuFlow 導入後
+## 1. Before – Challenges Prior to Adoption
 
-### 2.1 運用フロー
-
-1. すべての仕様書 / 議事録 / 企画書を DocuFlow にアップロード
-2. AI が自動で **要約・タグ・タイトル** を付与
-3. `/app` ダッシュボードと検索バーを「情報の入口」として統一
-4. プロジェクトごとに **Organization** を分け、チーム単位で権限管理
-
-### 2.2 効果（イメージ）
-
-- 「探す時間」が 1件あたり 5〜10分 → **30秒〜1分** に短縮
-- 新メンバーオンボーディング:
-  - 「まず DocuFlow の `Onboarding` タグを全部読めばOK」という運用に
-  - 1日かかっていたキャッチアップが **半日に圧縮**
+| Pain Point | Description |
+|:-----------|:------------|
+| **Scattered information** | Specs lived in GitHub Wiki, meeting notes in Google Docs, proposals in Notion—searching across platforms wasted significant time. |
+| **Time-consuming searches** | Finding a specific API spec or decision record took **5–10 minutes** per search. |
+| **Slow onboarding** | New hires spent **half a day or more** locating past meeting notes and proposals before they could contribute. |
 
 ---
 
-## 3. DocuFlow 機能との対応
+## 2. After – Results with DocuFlow
 
-| 課題 | 対応する DocuFlow 機能 |
-|:-----|:------------------------|
-| 情報が散らばって探せない | `/app` ダッシュボード + AI ベクトル検索 |
-| 長い議事録を読むのがつらい | AI 要約 (3〜5行) |
-| 「このプロジェクトの資料だけ見たい」 | Organizations / Organization Switcher |
-| 情報共有の抜け漏れ | 共有リンク + 通知ベル（コメント / メンション） |
-| チームの利用状況を把握したい | `/app/analytics`（日次・週次ドキュメント作成数） |
+### 2.1 New Workflow
+
+1. **Centralize**: Upload all specs, meeting notes, and proposals to DocuFlow.
+2. **Auto-enrich**: AI generates **summaries, tags, and titles** on each document.
+3. **Single entry point**: The `/app` dashboard and search bar become the team's "front door" for all information.
+4. **Access control**: Separate **Organizations** per project; control permissions with Owner / Admin / Member roles.
+
+### 2.2 Measured Impact (Illustrative)
+
+| Metric | Before | After | Improvement |
+|:-------|-------:|------:|:------------|
+| Time to find a document | 5–10 min | 30 sec – 1 min | **~90% reduction** |
+| New-hire onboarding docs review | 1 full day | Half a day | **50% faster** |
+| Weekly "where's that doc?" interruptions | 10+ | 1–2 | **~80% fewer** |
 
 ---
 
-## 4. どこを見ればイメージしやすいか
+## 3. Feature Mapping
 
-- `/app` : ダッシュボードでサンプルデータを触る
-- `/settings/organizations` : 組織 / メンバー / ロール管理
-- `/app/analytics` : チーム利用状況ダッシュボード
-- `/settings/billing` : SaaS としての課金・プラン設計
+| Challenge | DocuFlow Feature |
+|:----------|:-----------------|
+| Can't find scattered information | `/app` dashboard + AI vector search |
+| Long meeting notes are hard to read | AI Summary (3–5 sentences) |
+| "Show me only this project's docs" | Organizations + Organization Switcher |
+| Information sharing gaps | Share links + Notification bell (comments / mentions) |
+| Understand team usage patterns | `/app/analytics` (daily/weekly creation trends) |
 
+---
 
+## 4. Where to Explore
 
+| URL | Description |
+|:----|:------------|
+| `/app` | Main dashboard with sample documents |
+| `/settings/organizations` | Org / member / role management |
+| `/app/analytics` | Team usage analytics dashboard |
+| `/settings/billing` | SaaS billing & plan design |
 
+---
 
+## 5. Key Takeaways
 
+1. **Single source of truth** – All documents in one place eliminate cross-platform search fatigue.
+2. **AI-powered discoverability** – Auto-generated summaries and tags make information findable in seconds.
+3. **Role-based collaboration** – Organizations + RBAC keep sensitive docs secure while enabling seamless sharing.
+4. **Quantifiable ROI** – Time saved on searches and onboarding directly translates to developer productivity gains.
 
+---
 
+> _This case study is a hypothetical scenario designed to illustrate DocuFlow's value proposition for small to mid-sized teams._

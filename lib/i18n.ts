@@ -3,6 +3,10 @@ export type Locale = "ja" | "en";
 // Screen-scoped i18n dictionaries
 const translations = {
   ja: {
+    // Auth
+    login: "ログイン",
+    signup: "アカウント作成",
+    logout: "ログアウト",
     // Dashboard / app
     dashboard: "ダッシュボード",
     whatsNew: "What's New",
@@ -41,6 +45,10 @@ const translations = {
     cancel: "キャンセル",
   },
   en: {
+    // Auth
+    login: "Log in",
+    signup: "Sign up",
+    logout: "Log out",
     // Dashboard / app
     dashboard: "Dashboard",
     whatsNew: "What's New",

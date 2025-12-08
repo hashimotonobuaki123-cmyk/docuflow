@@ -48,6 +48,26 @@ export default async function BillingSettingsPage({
 
   const primaryOrg = (organizations ?? [])[0] as OrganizationRow | undefined;
 
+  // Fetch usage metrics for the primary organization
+  let documentCount = 0;
+  let memberCount = 0;
+  
+  if (primaryOrg) {
+    const [docsResult, membersResult] = await Promise.all([
+      supabase
+        .from("documents")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", primaryOrg.id),
+      supabase
+        .from("organization_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("organization_id", primaryOrg.id),
+    ]);
+    
+    documentCount = docsResult.count ?? 0;
+    memberCount = membersResult.count ?? 0;
+  }
+
   const stripeConfigured =
     !!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_PRICE_PRO_MONTH;
 
@@ -140,41 +160,79 @@ export default async function BillingSettingsPage({
                   {primaryOrg.plan.toUpperCase()}
                 </span>
               </p>
+              {/* Usage Meters */}
               <div className="grid gap-3 sm:grid-cols-2">
+                {/* Member Usage Meter */}
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[11px] font-semibold text-slate-600">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-semibold text-slate-600">
+                      {locale === "en" ? "Members" : "メンバー数"}
+                    </p>
+                    <span className="text-xs font-medium text-slate-900">
+                      {memberCount} / {primaryOrg.seat_limit ?? "∞"}
+                    </span>
+                  </div>
+                  {primaryOrg.seat_limit && (
+                    <div className="relative h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          memberCount / primaryOrg.seat_limit > 0.9
+                            ? "bg-red-500"
+                            : memberCount / primaryOrg.seat_limit > 0.7
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(100, (memberCount / primaryOrg.seat_limit) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-slate-500">
                     {locale === "en"
-                      ? "Member seat limit"
-                      : "メンバー数の上限"}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-900">
-                    {primaryOrg.seat_limit ??
-                      (locale === "en"
-                        ? "Unlimited (soft limit only for now)"
-                        : "無制限（現在はソフト制限のみ）")}
-                  </p>
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    {locale === "en"
-                      ? "Based on the number of `organization_members` rows."
-                      : "`organization_members` の件数がこの値を超える場合、UI 上で制限をかける想定です。"}
+                      ? primaryOrg.seat_limit
+                        ? `${primaryOrg.seat_limit - memberCount} seats remaining`
+                        : "Unlimited seats on this plan"
+                      : primaryOrg.seat_limit
+                      ? `残り ${primaryOrg.seat_limit - memberCount} 席`
+                      : "このプランは席数無制限"}
                   </p>
                 </div>
+
+                {/* Document Usage Meter */}
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[11px] font-semibold text-slate-600">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-semibold text-slate-600">
+                      {locale === "en" ? "Documents" : "ドキュメント数"}
+                    </p>
+                    <span className="text-xs font-medium text-slate-900">
+                      {documentCount} / {primaryOrg.document_limit ?? "∞"}
+                    </span>
+                  </div>
+                  {primaryOrg.document_limit && (
+                    <div className="relative h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          documentCount / primaryOrg.document_limit > 0.9
+                            ? "bg-red-500"
+                            : documentCount / primaryOrg.document_limit > 0.7
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(100, (documentCount / primaryOrg.document_limit) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-slate-500">
                     {locale === "en"
-                      ? "Document limit"
-                      : "ドキュメント数の上限"}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-900">
-                    {primaryOrg.document_limit ??
-                      (locale === "en"
-                        ? "Unlimited (soft limit only for now)"
-                        : "無制限（現在はソフト制限のみ）")}
-                  </p>
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    {locale === "en"
-                      ? "Controlled based on the number of `documents` rows."
-                      : "`documents` の件数ベースで制御する設計です。"}
+                      ? primaryOrg.document_limit
+                        ? `${primaryOrg.document_limit - documentCount} documents remaining`
+                        : "Unlimited documents on this plan"
+                      : primaryOrg.document_limit
+                      ? `残り ${primaryOrg.document_limit - documentCount} 件`
+                      : "このプランはドキュメント数無制限"}
                   </p>
                 </div>
               </div>
