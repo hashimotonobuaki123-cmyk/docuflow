@@ -114,6 +114,64 @@ Testing:   Vitest (130+ tests) + Playwright E2E
 
 ---
 
+## 🖼️ Product Screenshots
+
+<div align="center">
+
+### 📊 Dashboard — Document Workspace
+<img src="docs/screenshots/dashboard-main.png" alt="Dashboard with document list, stats, and AI features" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); margin-bottom: 24px;" />
+
+<table>
+<tr>
+<td width="50%" align="center">
+
+### 📝 New Document — AI Processing
+<img src="docs/screenshots/new-document-page.png" alt="Create document with AI summary" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+
+</td>
+<td width="50%" align="center">
+
+### 📄 Document Detail — Summary & Tags
+<img src="docs/screenshots/document-detail-view.png" alt="Document detail with AI summary" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
+### 🔐 Login — Modern Auth UI
+<img src="docs/screenshots/login-page.png" alt="Login page with email and Google OAuth" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+
+</td>
+<td width="50%" align="center">
+
+### ⚙️ Settings — Account & Preferences
+<img src="docs/screenshots/settings-page.png" alt="Settings page" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
+### 🏢 Organizations — Team Management
+<img src="docs/screenshots/organizations-page.png" alt="Organization management with RBAC" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+
+</td>
+<td width="50%" align="center">
+
+### 📈 Web Vitals — Performance Dashboard
+<img src="docs/screenshots/web-vitals-page.png" alt="Web Vitals monitoring" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+
+</td>
+</tr>
+</table>
+
+</div>
+
+<br />
+
+---
+
 ## 💡 Problem → Solution
 
 <table>
@@ -520,6 +578,39 @@ USING (share_token IS NOT NULL);
 </td>
 </tr>
 </table>
+
+<br />
+
+---
+
+## 🎮 Live Demo Experience
+
+<div align="center">
+
+### 👉 [**https://docuflow-azure.vercel.app/app?lang=en**](https://docuflow-azure.vercel.app/app?lang=en)
+
+</div>
+
+The demo includes **25+ sample documents** (specs, meeting notes, proposals, reports) to explore:
+
+| Step | Action | What to Notice |
+|:----:|:-------|:---------------|
+| 1️⃣ | Visit `/app?lang=en` | Document count, stats cards, AI similarity search |
+| 2️⃣ | Search **"auth"** or **"security"** | Vector search finds related docs instantly |
+| 3️⃣ | Click any document | AI summary, auto-generated tags, share link |
+| 4️⃣ | Try `/new?lang=en` | Upload PDF/Word → AI processes automatically |
+| 5️⃣ | Check `/settings` | Organizations, RBAC, billing (Stripe-ready) |
+| 6️⃣ | View `/app/vitals` | Real-time Web Vitals monitoring dashboard |
+
+### 🔍 Vector Search Examples
+
+```
+"auth" / "security"      → API Design Spec, Onboarding Manual
+"revenue" / "marketing"  → Monthly Sales Report, Campaign Proposal  
+"database" / "schema"    → DB Migration Doc, System Design
+```
+
+> 💡 Try natural language: *"How does user registration work?"*
 
 <br />
 
