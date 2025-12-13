@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   test: {
@@ -14,7 +15,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": new URL("./", import.meta.url).pathname,
+      // NOTE: import.meta.url の pathname は日本語などが percent-encode されるため、
+      // fileURLToPath でOSの実パスに変換してから alias に設定する
+      "@": fileURLToPath(new URL("./", import.meta.url)),
     },
   },
 });
