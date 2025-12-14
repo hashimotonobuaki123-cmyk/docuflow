@@ -30,6 +30,72 @@ export default async function Home() {
     redirect("/app");
   }
 
+  // LPの価格表示も Stripe の Price を正とする（表示と請求のズレを防ぐ）
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  const priceIds = {
+    pro: process.env.STRIPE_PRICE_PRO_MONTH,
+    team: process.env.STRIPE_PRICE_TEAM_MONTH,
+  } as const;
+
+  const formatRecurringLabel = (interval?: string | null, intervalCount?: number | null) => {
+    if (!interval) return "";
+    const count = intervalCount && intervalCount > 1 ? intervalCount : 1;
+    const unit =
+      interval === "day"
+        ? "日"
+        : interval === "week"
+          ? "週"
+          : interval === "month"
+            ? "月"
+            : interval === "year"
+              ? "年"
+              : "";
+    if (!unit) return "";
+    return count === 1 ? `/${unit}` : `/${count}${unit}`;
+  };
+
+  const formatCurrency = (currency: string, amount: number) => {
+    try {
+      return new Intl.NumberFormat("ja-JP", {
+        style: "currency",
+        currency: currency.toUpperCase(),
+      }).format(amount);
+    } catch {
+      return `${amount.toLocaleString()} ${currency.toUpperCase()}`;
+    }
+  };
+
+  const lpPrices: Partial<
+    Record<
+      "pro" | "team",
+      { label: string; recurringLabel: string }
+    >
+  > = {};
+
+  if (stripeSecret && (priceIds.pro || priceIds.team)) {
+    try {
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(stripeSecret, { apiVersion: "2024-06-20" });
+      await Promise.all(
+        (Object.keys(priceIds) as Array<keyof typeof priceIds>).map(async (k) => {
+          const priceId = priceIds[k];
+          if (!priceId) return;
+          const price = await stripe.prices.retrieve(priceId);
+          if (typeof price.unit_amount !== "number" || !price.currency) return;
+          lpPrices[k] = {
+            label: formatCurrency(price.currency, price.unit_amount),
+            recurringLabel: formatRecurringLabel(
+              price.recurring?.interval,
+              price.recurring?.interval_count,
+            ),
+          };
+        }),
+      );
+    } catch {
+      // LPはベストエフォート（価格表示が取れない場合は固定表示へフォールバック）
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Background Effects */}
@@ -340,8 +406,12 @@ export default async function Home() {
               </div>
               <div className="text-sm font-medium text-emerald-400 mb-2">Pro</div>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-bold">¥1,980</span>
-                <span className="text-slate-500">/月</span>
+                <span className="text-4xl font-bold">
+                  {lpPrices.pro?.label ?? "$19"}
+                </span>
+                <span className="text-slate-500">
+                  {lpPrices.pro?.recurringLabel ?? "/月"}
+                </span>
               </div>
               <p className="text-sm text-slate-500 mb-6">プロフェッショナル向け</p>
               <ul className="space-y-3 mb-8">
@@ -364,8 +434,12 @@ export default async function Home() {
             <div className="rounded-2xl border border-white/5 bg-slate-900/50 p-8">
               <div className="text-sm font-medium text-sky-400 mb-2">Team</div>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-bold">¥4,980</span>
-                <span className="text-slate-500">/月</span>
+                <span className="text-4xl font-bold">
+                  {lpPrices.team?.label ?? "$49"}
+                </span>
+                <span className="text-slate-500">
+                  {lpPrices.team?.recurringLabel ?? "/月"}
+                </span>
               </div>
               <p className="text-sm text-slate-500 mb-6">成長中のチーム向け</p>
               <ul className="space-y-3 mb-8">
