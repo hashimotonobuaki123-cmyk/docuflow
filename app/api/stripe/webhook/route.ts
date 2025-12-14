@@ -134,7 +134,8 @@ export async function POST(req: NextRequest) {
   // ---------------------------------------------------------------------------
   // 冪等性（重複イベント対策）
   //  - Stripe は同一 event.id を複数回配送する可能性がある
-  //  - 最初の1回だけ処理し、それ以外は即 200 を返す
+  //  - 既に processed/processing の場合は即 200
+  //  - failed の場合は「再処理」できるように processing に戻して続行
   // ---------------------------------------------------------------------------
   try {
     const minimalPayload = {
@@ -156,7 +157,41 @@ export async function POST(req: NextRequest) {
     if (insertErr) {
       // Duplicate key: already processed/processing → 冪等に 200
       if ((insertErr as any).code === "23505") {
-        return NextResponse.json({ received: true }, { status: 200 });
+        const { data: existing } = await supabaseAdmin
+          .from("stripe_webhook_events")
+          .select("status")
+          .eq("id", event.id)
+          .maybeSingle();
+
+        const status = (existing as { status?: string } | null)?.status;
+
+        // failed は再処理を許可（Stripeのリトライや手動Resendに対応）
+        if (status === "failed") {
+          const { error: retryErr } = await supabaseAdmin
+            .from("stripe_webhook_events")
+            .update({
+              status: "processing",
+              processed_at: null,
+              error_message: null,
+              payload: minimalPayload,
+            })
+            .eq("id", event.id)
+            .eq("status", "failed");
+
+          if (retryErr) {
+            console.error(
+              "[stripe/webhook] Failed to mark failed event as processing:",
+              retryErr,
+            );
+            return NextResponse.json(
+              { error: "Failed to resume failed webhook event" },
+              { status: 500 },
+            );
+          }
+          // 続行して本処理へ
+        } else {
+          return NextResponse.json({ received: true }, { status: 200 });
+        }
       }
       console.error("[stripe/webhook] Failed to record webhook event:", insertErr);
       return NextResponse.json(
