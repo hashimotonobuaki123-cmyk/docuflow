@@ -489,4 +489,36 @@ export async function deleteOrganization(
   return { success: true, error: null };
 }
 
+/**
+ * 組織を退出（admin/member のみ）
+ * - owner は退出不可（削除 or オーナー移譲が必要）
+ */
+export async function leaveOrganization(
+  organizationId: string,
+  actorUserId: string,
+): Promise<{ success: boolean; error: string | null }> {
+  const actorRole = await getUserRoleInOrganization(actorUserId, organizationId);
+  if (!actorRole) {
+    // すでに所属していないなら成功扱い（冪等）
+    return { success: true, error: null };
+  }
+
+  if (actorRole === "owner") {
+    return { success: false, error: "オーナーは組織を退出できません。" };
+  }
+
+  const { error } = await supabase
+    .from("organization_members")
+    .delete()
+    .eq("organization_id", organizationId)
+    .eq("user_id", actorUserId);
+
+  if (error) {
+    console.error("leaveOrganization error:", error);
+    return { success: false, error: "組織の退出に失敗しました。" };
+  }
+
+  return { success: true, error: null };
+}
+
 // getRoleDisplayName / getRoleBadgeClass は organizationTypes から再利用

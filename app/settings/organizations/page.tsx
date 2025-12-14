@@ -13,6 +13,7 @@ import {
   removeOrganizationMember,
   updateOrganizationMemberRole,
   deleteOrganization,
+  leaveOrganization,
 } from "@/lib/organizations";
 import {
   getOrganizationSubscription,
@@ -217,6 +218,40 @@ async function deleteOrganizationAction(formData: FormData) {
   revalidatePath("/settings/organizations");
   redirect(
     `/settings/organizations?orgMsg=${encodeURIComponent("組織を削除しました。")}`,
+  );
+}
+
+async function leaveOrganizationAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value;
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  const organizationId = String(formData.get("organizationId") ?? "").trim();
+  if (!organizationId) {
+    redirect("/settings/organizations");
+  }
+
+  const res = await leaveOrganization(organizationId, userId);
+  if (!res.success) {
+    redirect(
+      `/settings/organizations?org=${encodeURIComponent(
+        organizationId,
+      )}&orgError=${encodeURIComponent(res.error ?? "退出に失敗しました。")}`,
+    );
+  }
+
+  // 退出した組織がアクティブならCookieを消す
+  const activeOrg = cookieStore.get("docuflow_active_org")?.value ?? null;
+  if (activeOrg && activeOrg === organizationId) {
+    cookieStore.delete("docuflow_active_org");
+  }
+
+  revalidatePath("/settings/organizations");
+  redirect(
+    `/settings/organizations?orgMsg=${encodeURIComponent("組織を退出しました。")}`,
   );
 }
 
@@ -844,6 +879,27 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
                   >
                     組織を削除する
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* 退出（admin/member） */}
+            {userRole && userRole !== "owner" && (
+              <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <h3 className="text-sm font-semibold text-amber-900">
+                  組織を退出
+                </h3>
+                <p className="mt-1 text-xs text-amber-800">
+                  退出すると、この組織のドキュメントや設定にアクセスできなくなります。
+                </p>
+                <form action={leaveOrganizationAction} className="mt-3">
+                  <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                  >
+                    退出する
                   </button>
                 </form>
               </div>
