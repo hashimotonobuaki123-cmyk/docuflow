@@ -136,10 +136,17 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
   const { id } = params;
   void searchParams;
 
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    redirect(`/auth/login?redirectTo=${encodeURIComponent(`/documents/${id}/edit`)}`);
+  }
+
   const { data, error } = await supabase
     .from("documents")
     .select("*")
     .eq("id", id)
+    .eq("user_id", userId)
     .single();
 
   if (error || !data) {
