@@ -220,6 +220,65 @@ async function disableShare(formData: FormData) {
   revalidatePath(`/documents/${id}`);
 }
 
+async function regenerateShare(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim() || null;
+  if (!id) return;
+
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
+  // ドキュメントの組織スコープを取得して、共有リンク可否をチェック
+  const { data: meta } = await supabase
+    .from("documents")
+    .select("organization_id")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const organizationId = (meta as { organization_id?: string | null } | null)
+    ?.organization_id ?? null;
+  const { plan, limits } = await getEffectivePlan(userId, organizationId);
+  if (!limits.shareLinks) {
+    throw new Error("共有リンク機能は現在のプランでは利用できません。");
+  }
+
+  const token = randomUUID();
+  const shareExpiresAt =
+    plan === "free"
+      ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : plan === "pro"
+        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+  const { error } = await supabase
+    .from("documents")
+    .update({
+      share_token: token,
+      share_expires_at: shareExpiresAt,
+    })
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to regenerate share link.");
+  }
+
+  await logActivity("enable_share", {
+    documentId: id,
+    documentTitle: title,
+    details: "regenerate",
+  });
+
+  revalidatePath(`/documents/${id}`);
+}
+
 async function addComment(formData: FormData) {
   "use server";
 
@@ -352,6 +411,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
     created_at: string;
     is_archived?: boolean | null;
     share_token?: string | null;
+    share_expires_at?: string | null;
   };
 
   const tags = Array.isArray(doc.tags) ? doc.tags : [];
@@ -509,6 +569,22 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                       <p className="max-w-[220px] truncate font-mono text-[10px] text-slate-700">
                         /share/{doc.share_token}
                       </p>
+                    <p className="text-[10px] text-slate-500">
+                      {doc.share_expires_at
+                        ? `期限: ${formatJstDateTime(doc.share_expires_at) ?? doc.share_expires_at}`
+                        : "期限: なし"}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <form action={regenerateShare}>
+                        <input type="hidden" name="id" value={doc.id} />
+                        <input type="hidden" name="title" value={doc.title} />
+                        <button
+                          type="submit"
+                          className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          再発行
+                        </button>
+                      </form>
                       <form action={disableShare}>
                         <input type="hidden" name="id" value={doc.id} />
                         <input type="hidden" name="title" value={doc.title} />
@@ -519,6 +595,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                           共有を停止
                         </button>
                       </form>
+                    </div>
                     </>
                   ) : (
                     <form action={enableShare}>
