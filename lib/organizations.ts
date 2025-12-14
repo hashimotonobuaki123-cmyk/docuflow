@@ -246,7 +246,18 @@ export async function createInvitation(
   if (!inviterRole || inviterRole === "member") {
     captureEvent(
       "Org invite denied (permission)",
-      { organizationId, actorUserId: invitedBy, actorRole: inviterRole ?? "none" },
+      {
+        tags: {
+          domain: "org",
+          action: "org.invitation.create.denied",
+          reason: "permission",
+        },
+        extra: {
+          organizationId,
+          actorUserId: invitedBy,
+          actorRole: inviterRole ?? "none",
+        },
+      },
       "warning",
     );
     return { invitation: null, error: "招待する権限がありません。" };
@@ -256,7 +267,19 @@ export async function createInvitation(
   if (inviterRole === "admin" && role !== "member") {
     captureEvent(
       "Org invite denied (admin role restriction)",
-      { organizationId, actorUserId: invitedBy, actorRole: inviterRole, requestedRole: role },
+      {
+        tags: {
+          domain: "org",
+          action: "org.invitation.create.denied",
+          reason: "admin_role_restriction",
+        },
+        extra: {
+          organizationId,
+          actorUserId: invitedBy,
+          actorRole: inviterRole,
+          requestedRole: role,
+        },
+      },
       "warning",
     );
     return { invitation: null, error: "管理者はメンバーのみ招待できます。" };
@@ -281,7 +304,7 @@ export async function createInvitation(
   if (error) {
     console.error("createInvitation error:", error);
     captureError(new Error("createInvitation failed"), {
-      tags: { type: "org_invite_error" },
+      tags: { domain: "org", action: "org.invitation.create", type: "org_invite_error" },
       extra: { organizationId, actorUserId: invitedBy, requestedRole: role },
       user: { id: invitedBy },
       level: "error",
@@ -301,7 +324,10 @@ export async function createInvitation(
   // SentryにはPII（メール）を送らない
   captureEvent(
     "Org invite created",
-    { organizationId, actorUserId: invitedBy, role },
+    {
+      tags: { domain: "org", action: "org.invitation.created" },
+      extra: { organizationId, actorUserId: invitedBy, role },
+    },
     "info",
   );
 
@@ -326,7 +352,10 @@ export async function acceptInvitation(
   if (fetchError || !invitation) {
     captureEvent(
       "Org invite accept failed (not found)",
-      { tokenPrefix: String(token).slice(0, 8), userId },
+      {
+        tags: { domain: "org", action: "org.invitation.accept.failed", reason: "not_found" },
+        extra: { tokenPrefix: String(token).slice(0, 8), userId },
+      },
       "warning",
     );
     return { success: false, error: "招待が見つかりません。" };
@@ -336,7 +365,10 @@ export async function acceptInvitation(
   if (new Date(invitation.expires_at) < new Date()) {
     captureEvent(
       "Org invite accept failed (expired)",
-      { organizationId: invitation.organization_id, invitationId: invitation.id, userId },
+      {
+        tags: { domain: "org", action: "org.invitation.accept.failed", reason: "expired" },
+        extra: { organizationId: invitation.organization_id, invitationId: invitation.id, userId },
+      },
       "warning",
     );
     return { success: false, error: "招待の有効期限が切れています。" };
@@ -380,7 +412,11 @@ export async function acceptInvitation(
   if (memberError) {
     console.error("acceptInvitation member error:", memberError);
     captureError(new Error("acceptInvitation failed"), {
-      tags: { type: "org_invite_accept_error" },
+      tags: {
+        domain: "org",
+        action: "org.invitation.accept",
+        type: "org_invite_accept_error",
+      },
       extra: {
         organizationId: invitation.organization_id,
         invitationId: invitation.id,
@@ -419,7 +455,10 @@ export async function acceptInvitation(
 
   captureEvent(
     "Org member joined",
-    { organizationId: invitation.organization_id, userId, role: invitation.role },
+    {
+      tags: { domain: "org", action: "org.member.joined" },
+      extra: { organizationId: invitation.organization_id, userId, role: invitation.role },
+    },
     "info",
   );
 
@@ -440,7 +479,14 @@ export async function removeOrganizationMember(
   if (!actorRole || actorRole === "member") {
     captureEvent(
       "Org remove member denied (permission)",
-      { organizationId, actorUserId, actorRole: actorRole ?? "none", targetUserId },
+      {
+        tags: {
+          domain: "org",
+          action: "org.member.remove.denied",
+          reason: "permission",
+        },
+        extra: { organizationId, actorUserId, actorRole: actorRole ?? "none", targetUserId },
+      },
       "warning",
     );
     return { success: false, error: "メンバーを管理する権限がありません。" };
@@ -471,7 +517,14 @@ export async function removeOrganizationMember(
   if (targetRole === "owner") {
     captureEvent(
       "Org remove member denied (target owner)",
-      { organizationId, actorUserId, actorRole, targetUserId },
+      {
+        tags: {
+          domain: "org",
+          action: "org.member.remove.denied",
+          reason: "target_owner",
+        },
+        extra: { organizationId, actorUserId, actorRole, targetUserId },
+      },
       "warning",
     );
     return { success: false, error: "オーナーは削除できません。" };
@@ -480,7 +533,14 @@ export async function removeOrganizationMember(
   if (actorRole === "admin" && targetRole !== "member") {
     captureEvent(
       "Org remove member denied (admin restriction)",
-      { organizationId, actorUserId, actorRole, targetUserId, targetRole },
+      {
+        tags: {
+          domain: "org",
+          action: "org.member.remove.denied",
+          reason: "admin_role_restriction",
+        },
+        extra: { organizationId, actorUserId, actorRole, targetUserId, targetRole },
+      },
       "warning",
     );
     return { success: false, error: "管理者はメンバーのみ削除できます。" };
@@ -495,7 +555,11 @@ export async function removeOrganizationMember(
   if (error) {
     console.error("removeOrganizationMember delete error:", error);
     captureError(new Error("removeOrganizationMember failed"), {
-      tags: { type: "org_remove_member_error" },
+      tags: {
+        domain: "org",
+        action: "org.member.remove",
+        type: "org_remove_member_error",
+      },
       extra: { organizationId, actorUserId, targetUserId },
       user: { id: actorUserId },
       level: "error",
@@ -511,7 +575,10 @@ export async function removeOrganizationMember(
 
   captureEvent(
     "Org member removed",
-    { organizationId, actorUserId, targetUserId },
+    {
+      tags: { domain: "org", action: "org.member.removed" },
+      extra: { organizationId, actorUserId, targetUserId },
+    },
     "info",
   );
 
@@ -532,7 +599,20 @@ export async function updateOrganizationMemberRole(
   if (actorRole !== "owner") {
     captureEvent(
       "Org change role denied (permission)",
-      { organizationId, actorUserId, actorRole: actorRole ?? "none", targetUserId, newRole },
+      {
+        tags: {
+          domain: "org",
+          action: "org.member.role_change.denied",
+          reason: "permission",
+        },
+        extra: {
+          organizationId,
+          actorUserId,
+          actorRole: actorRole ?? "none",
+          targetUserId,
+          newRole,
+        },
+      },
       "warning",
     );
     return { success: false, error: "ロールを変更する権限がありません。" };
@@ -562,7 +642,14 @@ export async function updateOrganizationMemberRole(
   if (targetRole === "owner") {
     captureEvent(
       "Org change role denied (target owner)",
-      { organizationId, actorUserId, targetUserId },
+      {
+        tags: {
+          domain: "org",
+          action: "org.member.role_change.denied",
+          reason: "target_owner",
+        },
+        extra: { organizationId, actorUserId, targetUserId },
+      },
       "warning",
     );
     return { success: false, error: "オーナーのロールは変更できません。" };
@@ -577,7 +664,11 @@ export async function updateOrganizationMemberRole(
   if (error) {
     console.error("updateOrganizationMemberRole update error:", error);
     captureError(new Error("updateOrganizationMemberRole failed"), {
-      tags: { type: "org_change_role_error" },
+      tags: {
+        domain: "org",
+        action: "org.member.role_change",
+        type: "org_change_role_error",
+      },
       extra: { organizationId, actorUserId, targetUserId, newRole },
       user: { id: actorUserId },
       level: "error",
@@ -593,7 +684,10 @@ export async function updateOrganizationMemberRole(
 
   captureEvent(
     "Org member role changed",
-    { organizationId, actorUserId, targetUserId, newRole },
+    {
+      tags: { domain: "org", action: "org.member.role_changed" },
+      extra: { organizationId, actorUserId, targetUserId, newRole },
+    },
     "info",
   );
 
@@ -612,7 +706,10 @@ export async function deleteOrganization(
   if (actorRole !== "owner") {
     captureEvent(
       "Org delete denied (permission)",
-      { organizationId, actorUserId, actorRole: actorRole ?? "none" },
+      {
+        tags: { domain: "org", action: "org.delete.denied", reason: "permission" },
+        extra: { organizationId, actorUserId, actorRole: actorRole ?? "none" },
+      },
       "warning",
     );
     return { success: false, error: "組織を削除する権限がありません。" };
@@ -626,7 +723,7 @@ export async function deleteOrganization(
   if (error) {
     console.error("deleteOrganization error:", error);
     captureError(new Error("deleteOrganization failed"), {
-      tags: { type: "org_delete_error" },
+      tags: { domain: "org", action: "org.delete", type: "org_delete_error" },
       extra: { organizationId, actorUserId },
       user: { id: actorUserId },
       level: "error",
@@ -641,7 +738,10 @@ export async function deleteOrganization(
 
   captureEvent(
     "Org deleted",
-    { organizationId, actorUserId },
+    {
+      tags: { domain: "org", action: "org.deleted" },
+      extra: { organizationId, actorUserId },
+    },
     "warning",
   );
 
@@ -665,7 +765,10 @@ export async function leaveOrganization(
   if (actorRole === "owner") {
     captureEvent(
       "Org leave denied (owner)",
-      { organizationId, actorUserId },
+      {
+        tags: { domain: "org", action: "org.leave.denied", reason: "owner" },
+        extra: { organizationId, actorUserId },
+      },
       "warning",
     );
     return { success: false, error: "オーナーは組織を退出できません。" };
@@ -680,7 +783,7 @@ export async function leaveOrganization(
   if (error) {
     console.error("leaveOrganization error:", error);
     captureError(new Error("leaveOrganization failed"), {
-      tags: { type: "org_leave_error" },
+      tags: { domain: "org", action: "org.leave", type: "org_leave_error" },
       extra: { organizationId, actorUserId },
       user: { id: actorUserId },
       level: "error",
@@ -695,7 +798,10 @@ export async function leaveOrganization(
 
   captureEvent(
     "Org left",
-    { organizationId, actorUserId },
+    {
+      tags: { domain: "org", action: "org.left" },
+      extra: { organizationId, actorUserId },
+    },
     "info",
   );
 
@@ -724,7 +830,14 @@ export async function transferOrganizationOwnership(
   if (!supabaseAdmin) {
     captureEvent(
       "Org transfer ownership denied (server not configured)",
-      { organizationId, actorUserId, newOwnerUserId },
+      {
+        tags: {
+          domain: "org",
+          action: "org.ownership.transfer.denied",
+          reason: "server_not_configured",
+        },
+        extra: { organizationId, actorUserId, newOwnerUserId },
+      },
       "warning",
     );
     return {
@@ -743,7 +856,7 @@ export async function transferOrganizationOwnership(
   if (orgError || !org) {
     console.error("transferOwnership org fetch error:", orgError);
     captureError(new Error("transferOwnership org fetch failed"), {
-      tags: { type: "org_transfer_error" },
+      tags: { domain: "org", action: "org.ownership.transfer", type: "org_transfer_error" },
       extra: { organizationId, actorUserId, newOwnerUserId },
       user: { id: actorUserId },
       level: "error",
@@ -754,7 +867,14 @@ export async function transferOrganizationOwnership(
   if (!currentOwnerId || currentOwnerId !== actorUserId) {
     captureEvent(
       "Org transfer ownership denied (permission)",
-      { organizationId, actorUserId, currentOwnerId, newOwnerUserId },
+      {
+        tags: {
+          domain: "org",
+          action: "org.ownership.transfer.denied",
+          reason: "permission",
+        },
+        extra: { organizationId, actorUserId, currentOwnerId, newOwnerUserId },
+      },
       "warning",
     );
     return { success: false, error: "オーナーのみ移譲できます。" };
@@ -770,7 +890,7 @@ export async function transferOrganizationOwnership(
   if (targetError) {
     console.error("transferOwnership target fetch error:", targetError);
     captureError(new Error("transferOwnership target fetch failed"), {
-      tags: { type: "org_transfer_error" },
+      tags: { domain: "org", action: "org.ownership.transfer", type: "org_transfer_error" },
       extra: { organizationId, actorUserId, newOwnerUserId },
       user: { id: actorUserId },
       level: "error",
@@ -780,7 +900,14 @@ export async function transferOrganizationOwnership(
   if (!targetMember) {
     captureEvent(
       "Org transfer ownership denied (target not member)",
-      { organizationId, actorUserId, newOwnerUserId },
+      {
+        tags: {
+          domain: "org",
+          action: "org.ownership.transfer.denied",
+          reason: "target_not_member",
+        },
+        extra: { organizationId, actorUserId, newOwnerUserId },
+      },
       "warning",
     );
     return { success: false, error: "移譲先は組織メンバーである必要があります。" };
@@ -796,7 +923,7 @@ export async function transferOrganizationOwnership(
   if (oldRoleError) {
     console.error("transferOwnership old role update error:", oldRoleError);
     captureError(new Error("transferOwnership old owner role update failed"), {
-      tags: { type: "org_transfer_error" },
+      tags: { domain: "org", action: "org.ownership.transfer", type: "org_transfer_error" },
       extra: { organizationId, actorUserId, newOwnerUserId },
       user: { id: actorUserId },
       level: "error",
@@ -818,7 +945,7 @@ export async function transferOrganizationOwnership(
       .eq("organization_id", organizationId)
       .eq("user_id", actorUserId);
     captureError(new Error("transferOwnership new owner role update failed"), {
-      tags: { type: "org_transfer_error" },
+      tags: { domain: "org", action: "org.ownership.transfer", type: "org_transfer_error" },
       extra: { organizationId, actorUserId, newOwnerUserId },
       user: { id: actorUserId },
       level: "error",
@@ -844,7 +971,7 @@ export async function transferOrganizationOwnership(
       .eq("organization_id", organizationId)
       .eq("user_id", newOwnerUserId);
     captureError(new Error("transferOwnership organizations.owner_id update failed"), {
-      tags: { type: "org_transfer_error" },
+      tags: { domain: "org", action: "org.ownership.transfer", type: "org_transfer_error" },
       extra: { organizationId, actorUserId, newOwnerUserId },
       user: { id: actorUserId },
       level: "error",
@@ -860,7 +987,10 @@ export async function transferOrganizationOwnership(
 
   captureEvent(
     "Org ownership transferred",
-    { organizationId, actorUserId, newOwnerUserId },
+    {
+      tags: { domain: "org", action: "org.ownership.transferred" },
+      extra: { organizationId, actorUserId, newOwnerUserId },
+    },
     "warning",
   );
 

@@ -1,5 +1,31 @@
 import * as Sentry from "@sentry/nextjs";
 
+type CaptureLevel = "fatal" | "error" | "warning" | "info" | "debug";
+type CaptureEventLevel = "info" | "warning" | "error";
+
+export type SentryContext = {
+  tags?: Record<string, string>;
+  extra?: Record<string, unknown>;
+  user?: { id: string; email?: string };
+  fingerprint?: string[];
+};
+
+export type SentryEventContext = SentryContext & {
+  /**
+   * 互換用: 旧 `captureEvent(message, data)` の data を受け取れるようにする
+   * （内部では extra にマージされます）
+   */
+  data?: Record<string, unknown>;
+};
+
+function isEventContext(v: unknown): v is SentryEventContext {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  return (
+    "tags" in o || "extra" in o || "user" in o || "fingerprint" in o || "data" in o
+  );
+}
+
 /**
  * エラーをSentryに送信するユーティリティ
  */
@@ -9,7 +35,7 @@ export function captureError(
     tags?: Record<string, string>;
     extra?: Record<string, unknown>;
     user?: { id: string; email?: string };
-    level?: "fatal" | "error" | "warning" | "info" | "debug";
+    level?: CaptureLevel;
   }
 ) {
   if (process.env.NODE_ENV !== "production") {
@@ -51,17 +77,48 @@ export function captureError(
  */
 export function captureEvent(
   message: string,
-  data?: Record<string, unknown>,
-  level: "info" | "warning" | "error" = "info"
+  dataOrContext?: Record<string, unknown> | SentryEventContext,
+  level: CaptureEventLevel = "info",
 ) {
+  const context: SentryEventContext | undefined = isEventContext(dataOrContext)
+    ? dataOrContext
+    : dataOrContext
+      ? { data: dataOrContext }
+      : undefined;
+
+  const mergedExtra: Record<string, unknown> | undefined = context
+    ? { ...(context.extra ?? {}), ...(context.data ?? {}) }
+    : undefined;
+
   if (process.env.NODE_ENV !== "production") {
-    console.log(`[Sentry Event] ${level}: ${message}`, data);
+    console.log(`[Sentry Event] ${level}: ${message}`, {
+      tags: context?.tags,
+      extra: mergedExtra,
+      fingerprint: context?.fingerprint,
+      user: context?.user ? { id: context.user.id } : undefined,
+    });
     return;
   }
 
-  Sentry.captureMessage(message, {
-    level,
-    extra: data,
+  Sentry.withScope((scope) => {
+    if (context?.tags) {
+      Object.entries(context.tags).forEach(([key, value]) => {
+        scope.setTag(key, value);
+      });
+    }
+
+    if (context?.user) {
+      scope.setUser(context.user);
+    }
+
+    if (context?.fingerprint) {
+      scope.setFingerprint(context.fingerprint);
+    }
+
+    Sentry.captureMessage(message, {
+      level,
+      extra: mergedExtra,
+    });
   });
 }
 

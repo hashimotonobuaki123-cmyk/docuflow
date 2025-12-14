@@ -370,6 +370,48 @@ Supabase では以下を監視：
   action: "Slack #alerts"
 ```
 
+#### タグ（domain/action）で「危険操作」を確実に拾う（推奨）
+
+DocuFlow では、重要イベントを `captureEvent()` で Sentry に送り、**`domain` / `action` タグ**で絞り込めるようにしています。
+
+例（実装済み）:
+
+- **組織関連**
+  - `domain=org`
+  - `action=org.deleted`（組織削除が完了）
+  - `action=org.ownership.transferred`（オーナー移譲が完了）
+  - `action=org.member.removed`（メンバー削除が完了）
+  - `action=org.*.denied`（権限拒否：不正/誤操作の兆候）
+
+- **課金（Stripe）関連**
+  - `domain=billing`
+  - `action=billing.invoice.payment_failed`（支払い失敗）
+  - `action=billing.webhook.config_missing`（Webhook設定不足）
+  - `action=billing.webhook.supabase_admin_missing`（Webhook処理不能：運用上の致命傷）
+
+> 注意: `organizationId` や `userId` は **タグではなく extra** に入れています（タグの高カーディナリティ化を防ぐため）。
+
+#### 初心者向け：Sentry でアラートを作る手順（最短）
+
+1. **Sentry にログイン**
+2. 左メニューから **Alerts** を開く
+3. **Create Alert Rule** を押す
+4. まずは扱いやすいので **Issue alert rule** を選ぶ
+5. ルール名を付ける（例: `CRIT: org ownership transferred`）
+6. **Filter**（絞り込み）でタグ条件を入れる
+   - 例（オーナー移譲を即通知）:
+     - `domain:org`
+     - `action:org.ownership.transferred`
+   - 例（支払い失敗を通知）:
+     - `domain:billing`
+     - `action:billing.invoice.payment_failed`
+7. **Trigger**（発火条件）を設定
+   - まずはシンプルに「**A new issue is created**」でOK
+   - 運用が落ち着いたら「一定時間内に N 回」などに調整
+8. **Actions**（通知先）を設定
+   - 例: Email / Slack（Sentry 側で Slack 連携が必要）
+9. 保存して完了
+
 ### Sentry 統合コード例
 
 #### エラーキャプチャ

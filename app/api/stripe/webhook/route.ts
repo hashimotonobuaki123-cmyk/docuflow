@@ -93,8 +93,11 @@ export async function POST(req: NextRequest) {
     captureEvent(
       "Stripe Webhook が未設定です（環境変数不足）",
       {
-        hasStripeSecret: !!stripeSecret,
-        hasWebhookSecret: !!webhookSecret,
+        tags: { domain: "billing", action: "billing.webhook.config_missing" },
+        extra: {
+          hasStripeSecret: !!stripeSecret,
+          hasWebhookSecret: !!webhookSecret,
+        },
       },
       "warning",
     );
@@ -110,7 +113,9 @@ export async function POST(req: NextRequest) {
     );
     captureEvent(
       "Stripe Webhook を処理できません（supabaseAdmin 未初期化）",
-      {},
+      {
+        tags: { domain: "billing", action: "billing.webhook.supabase_admin_missing" },
+      },
       "error",
     );
     return NextResponse.json(
@@ -615,11 +620,14 @@ export async function POST(req: NextRequest) {
       captureEvent(
         "Stripe の支払い失敗（invoice.payment_failed）",
         {
-          stripeEventId: event.id,
-          stripeCustomerId: customerId,
-          invoiceId: invoice.id,
-          amountDue: invoice.amount_due,
-          currency: invoice.currency,
+          tags: { domain: "billing", action: "billing.invoice.payment_failed" },
+          extra: {
+            stripeEventId: event.id,
+            stripeCustomerId: customerId,
+            invoiceId: invoice.id,
+            amountDue: invoice.amount_due,
+            currency: invoice.currency,
+          },
         },
         "warning",
       );
