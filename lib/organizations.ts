@@ -9,6 +9,7 @@
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { logActivity } from "@/lib/activityLog";
 import {
   OrganizationRole,
   Organization,
@@ -271,6 +272,15 @@ export async function createInvitation(
     return { invitation: null, error: "招待の作成に失敗しました。" };
   }
 
+  await logActivity("invite_member", {
+    userId: invitedBy,
+    organizationId,
+    metadata: {
+      invited_email: email,
+      role,
+    },
+  });
+
   return { invitation: data as OrganizationInvitation, error: null };
 }
 
@@ -310,6 +320,11 @@ export async function acceptInvitation(
       .from("organization_invitations")
       .update({ accepted_at: new Date().toISOString() })
       .eq("id", invitation.id);
+    await logActivity("join_organization", {
+      userId,
+      organizationId: invitation.organization_id,
+      metadata: { invitation_id: invitation.id, role: invitation.role, already_member: true },
+    });
     return { success: true, error: null, organizationId: invitation.organization_id };
   }
 
@@ -337,6 +352,11 @@ export async function acceptInvitation(
         .from("organization_invitations")
         .update({ accepted_at: new Date().toISOString() })
         .eq("id", invitation.id);
+      await logActivity("join_organization", {
+        userId,
+        organizationId: invitation.organization_id,
+        metadata: { invitation_id: invitation.id, role: invitation.role, already_member: true },
+      });
       return { success: true, error: null, organizationId: invitation.organization_id };
     }
     return { success: false, error: "メンバー登録に失敗しました。" };
@@ -347,6 +367,12 @@ export async function acceptInvitation(
     .from("organization_invitations")
     .update({ accepted_at: new Date().toISOString() })
     .eq("id", invitation.id);
+
+  await logActivity("join_organization", {
+    userId,
+    organizationId: invitation.organization_id,
+    metadata: { invitation_id: invitation.id, role: invitation.role },
+  });
 
   return { success: true, error: null, organizationId: invitation.organization_id };
 }
@@ -407,6 +433,12 @@ export async function removeOrganizationMember(
     return { success: false, error: "メンバーの削除に失敗しました。" };
   }
 
+  await logActivity("remove_member", {
+    userId: actorUserId,
+    organizationId,
+    metadata: { target_user_id: targetUserId },
+  });
+
   return { success: true, error: null };
 }
 
@@ -461,6 +493,12 @@ export async function updateOrganizationMemberRole(
     return { success: false, error: "ロール変更に失敗しました。" };
   }
 
+  await logActivity("change_member_role", {
+    userId: actorUserId,
+    organizationId,
+    metadata: { target_user_id: targetUserId, new_role: newRole },
+  });
+
   return { success: true, error: null };
 }
 
@@ -486,6 +524,11 @@ export async function deleteOrganization(
     console.error("deleteOrganization error:", error);
     return { success: false, error: "組織の削除に失敗しました。" };
   }
+
+  await logActivity("delete_organization", {
+    userId: actorUserId,
+    organizationId,
+  });
 
   return { success: true, error: null };
 }
@@ -518,6 +561,11 @@ export async function leaveOrganization(
     console.error("leaveOrganization error:", error);
     return { success: false, error: "組織の退出に失敗しました。" };
   }
+
+  await logActivity("leave_organization", {
+    userId: actorUserId,
+    organizationId,
+  });
 
   return { success: true, error: null };
 }
@@ -626,6 +674,12 @@ export async function transferOrganizationOwnership(
       .eq("user_id", newOwnerUserId);
     return { success: false, error: "オーナー移譲に失敗しました（組織の更新）。" };
   }
+
+  await logActivity("transfer_ownership", {
+    userId: actorUserId,
+    organizationId,
+    metadata: { new_owner_user_id: newOwnerUserId },
+  });
 
   return { success: true, error: null };
 }
