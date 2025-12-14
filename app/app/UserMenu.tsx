@@ -49,17 +49,11 @@ export function UserMenu() {
               {initial}
             </div>
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold text-slate-900">
-                アカウント
-              </p>
-              {email && (
-                <p className="truncate text-[11px] text-slate-500">{email}</p>
-              )}
+              <p className="text-[12px] font-semibold text-slate-900">アカウント</p>
+              {email && <p className="truncate text-[11px] text-slate-500">{email}</p>}
               {provider && (
                 <p className="mt-0.5 text-[10px] text-emerald-600">
-                  {provider === "google"
-                    ? "Google でログイン中"
-                    : "メールアドレスでログイン中"}
+                  {provider === "google" ? "Google でログイン中" : "メールアドレスでログイン中"}
                 </p>
               )}
             </div>

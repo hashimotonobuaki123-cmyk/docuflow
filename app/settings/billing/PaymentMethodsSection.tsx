@@ -71,9 +71,7 @@ export function PaymentMethodsSection({
     } catch (err) {
       console.error("Failed to create setup intent:", err);
       setError(
-        locale === "en"
-          ? "Failed to initialize payment form"
-          : "支払いフォームの初期化に失敗しました",
+        "支払いフォームの初期化に失敗しました",
       );
     }
   };
@@ -81,9 +79,7 @@ export function PaymentMethodsSection({
   const handleDeletePaymentMethod = async (paymentMethodId: string) => {
     if (
       !confirm(
-        locale === "en"
-          ? "Are you sure you want to delete this payment method?"
-          : "この支払い方法を削除してもよろしいですか？",
+        "この支払い方法を削除してもよろしいですか？",
       )
     ) {
       return;
@@ -106,9 +102,7 @@ export function PaymentMethodsSection({
     } catch (err) {
       console.error("Failed to delete payment method:", err);
       setError(
-        locale === "en"
-          ? "Failed to delete payment method"
-          : "支払い方法の削除に失敗しました",
+        "支払い方法の削除に失敗しました",
       );
     }
   };
@@ -147,7 +141,7 @@ export function PaymentMethodsSection({
     <div className="rounded-lg border border-slate-200 bg-white p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-slate-900">
-          {locale === "en" ? "Payment methods" : "支払い方法"}
+          {"支払い方法"}
         </h3>
         {!showAddForm && (
           <button
@@ -155,7 +149,7 @@ export function PaymentMethodsSection({
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
           >
             <Plus className="h-3 w-3" />
-            {locale === "en" ? "Add" : "追加"}
+            {"追加"}
           </button>
         )}
       </div>
@@ -183,16 +177,14 @@ export function PaymentMethodsSection({
             }}
             className="mt-2 text-xs text-slate-600 hover:text-slate-900"
           >
-            {locale === "en" ? "Cancel" : "キャンセル"}
+            {"キャンセル"}
           </button>
         </div>
       ) : (
         <div className="space-y-2">
           {paymentMethods.length === 0 ? (
             <p className="text-sm text-slate-600">
-              {locale === "en"
-                ? "No payment methods added yet."
-                : "支払い方法がまだ追加されていません。"}
+              {"支払い方法がまだ追加されていません。"}
             </p>
           ) : (
             paymentMethods.map((pm) => (
@@ -207,7 +199,7 @@ export function PaymentMethodsSection({
                       {getCardBrandName(pm.card.brand)} •••• {pm.card.last4}
                     </p>
                     <p className="text-xs text-slate-600">
-                      {locale === "en" ? "Expires" : "有効期限"}:{" "}
+                      {"有効期限"}:{" "}
                       {String(pm.card.exp_month).padStart(2, "0")}/
                       {pm.card.exp_year}
                     </p>
@@ -216,7 +208,7 @@ export function PaymentMethodsSection({
                 <button
                   onClick={() => handleDeletePaymentMethod(pm.id)}
                   className="rounded-lg p-1.5 text-slate-600 hover:bg-red-50 hover:text-red-600"
-                  title={locale === "en" ? "Delete" : "削除"}
+                  title={"削除"}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

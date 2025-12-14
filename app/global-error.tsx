@@ -2,8 +2,6 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
-import type { Locale } from "@/lib/i18n";
-import { useLocale } from "@/lib/useLocale";
 
 export default function GlobalError({
   error,
@@ -12,7 +10,6 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const locale: Locale = useLocale();
 
   useEffect(() => {
     // Sentry にエラーを送信
@@ -20,7 +17,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang={locale === "en" ? "en" : "ja"}>
+    <html lang={"ja"}>
       <body>
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-red-50">
           <div className="max-w-md w-full p-8 text-center">
@@ -41,14 +38,10 @@ export default function GlobalError({
                 </svg>
               </div>
               <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                {locale === "en"
-                  ? "An unexpected error has occurred"
-                  : "予期しないエラーが発生しました"}
+                {"予期しないエラーが発生しました"}
               </h1>
               <p className="text-slate-600 text-sm">
-                {locale === "en"
-                  ? "Sorry, something went wrong. This problem has been reported automatically."
-                  : "申し訳ございません。問題が発生しました。\nこの問題は自動的に報告されました。"}
+                {"申し訳ございません。問題が発生しました。\nこの問題は自動的に報告されました。"}
               </p>
             </div>
 
@@ -57,19 +50,19 @@ export default function GlobalError({
                 onClick={() => reset()}
                 className="w-full px-4 py-3 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-400 transition-colors"
               >
-                {locale === "en" ? "Try again" : "もう一度試す"}
+                {"もう一度試す"}
               </button>
               <button
                 onClick={() => (window.location.href = "/")}
                 className="w-full px-4 py-3 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition-colors"
               >
-                {locale === "en" ? "Back to home" : "ホームに戻る"}
+                {"ホームに戻る"}
               </button>
             </div>
 
             {error.digest && (
               <p className="mt-6 text-xs text-slate-400">
-                {locale === "en" ? "Error ID: " : "エラーID: "}
+                {"エラーID: "}
                 {error.digest}
               </p>
             )}

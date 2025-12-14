@@ -8,8 +8,6 @@ import { logActivity } from "@/lib/activityLog";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { Logo } from "@/components/Logo";
 import { RegenerateSummaryButton } from "@/components/RegenerateSummaryButton";
-import type { Locale } from "@/lib/i18n";
-import { getLocaleFromParam } from "@/lib/i18n";
 
 // UTC の ISO 文字列を、日本時間 (UTC+9) の "YYYY/MM/DD HH:MM" に変換するヘルパー
 function formatJstDateTime(value: string | null): string | null {
@@ -233,8 +231,7 @@ async function regenerateSummary(formData: FormData) {
 
 export default async function DocumentDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const sp = await searchParams;
-  const locale: Locale = getLocaleFromParam(sp?.lang);
+  void searchParams;
 
   const { data, error } = await supabase
     .from("documents")
@@ -316,25 +313,21 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           <div className="flex items-center gap-3">
             <Logo />
             <p className="text-sm text-slate-500">
-              {locale === "en" ? "Document details" : "ドキュメント詳細"}
+              ドキュメント詳細
             </p>
           </div>
           <div className="flex items-center gap-3 text-xs">
             <Link
-              href={
-                locale === "en"
-                  ? `/documents/${doc.id}/edit?lang=en`
-                  : `/documents/${doc.id}/edit`
-              }
+              href={`/documents/${doc.id}/edit`}
               className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
-              {locale === "en" ? "Edit" : "編集"}
+              編集
             </Link>
             <Link
-              href={locale === "en" ? "/app?lang=en" : "/app"}
+              href="/app"
               className="font-medium text-slate-600 underline-offset-4 hover:underline"
             >
-              {locale === "en" ? "Back to list" : "一覧に戻る"}
+              一覧に戻る
             </Link>
           </div>
         </div>
@@ -358,11 +351,11 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     dateTime={createdAtDisplay ?? undefined}
                     className="text-[11px]"
                   >
-                    {createdAtDisplay ?? (locale === "en" ? "No date" : "作成日時なし")}
+                    {createdAtDisplay ?? "作成日時なし"}
                   </time>
                   {doc.is_archived && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                      📦 {locale === "en" ? "Archived" : "アーカイブ済み"}
+                      📦 アーカイブ済み
                     </span>
                   )}
                 </div>
@@ -379,12 +372,10 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     type="submit"
                     className="rounded-md border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100"
                   >
-                    {locale === "en" ? "Delete document" : "ドキュメントを削除"}
+                    ドキュメントを削除
                   </button>
                   <p className="text-[10px] text-slate-400">
-                    {locale === "en"
-                      ? "This action cannot be undone"
-                      : "削除すると元に戻せません"}
+                    削除すると元に戻せません
                   </p>
                 </form>
 
@@ -409,18 +400,14 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   >
                     📦{" "}
                     {doc.is_archived
-                      ? locale === "en"
-                        ? "Unarchive"
-                        : "アーカイブを解除"
-                      : locale === "en"
-                      ? "Archive"
+                      ? "アーカイブを解除"
                       : "アーカイブ"}
                   </button>
                 </form>
 
                 <div className="flex flex-col items-end gap-1 text-[11px] text-slate-600">
                   <p className="text-[10px] font-semibold text-slate-500">
-                    {locale === "en" ? "Share link" : "共有リンク"}
+                    共有リンク
                   </p>
                   {doc.share_token ? (
                     <>
@@ -434,7 +421,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                           type="submit"
                           className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                         >
-                          {locale === "en" ? "Disable sharing" : "共有を停止"}
+                          共有を停止
                         </button>
                       </form>
                     </>
@@ -446,7 +433,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                         type="submit"
                         className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                       >
-                        {locale === "en" ? "Create share link" : "共有リンクを発行"}
+                        共有リンクを発行
                       </button>
                     </form>
                   )}
@@ -458,74 +445,61 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             <div className="grid gap-3 text-[11px] text-slate-600 md:grid-cols-3">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                 <p className="font-semibold text-slate-700">
-                  {locale === "en" ? "Document info" : "ドキュメント情報"}
+                  ドキュメント情報
                 </p>
                 <p className="mt-1 text-[11px]">
-                  {locale === "en" ? "Created: " : "作成日時: "}
+                  作成日時:{" "}
                   <span className="font-medium">
-                    {createdAtDisplay ??
-                      (locale === "en" ? "No date" : "作成日時なし")}
+                    {createdAtDisplay ?? "作成日時なし"}
                   </span>
                 </p>
                 {doc.category && (
                   <p className="mt-1">
-                    {locale === "en" ? "Category: " : "カテゴリ: "}
+                    カテゴリ:{" "}
                     <span className="font-medium">{doc.category}</span>
                   </p>
                 )}
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                 <p className="font-semibold text-slate-700">
-                  {locale === "en" ? "Volume" : "ボリューム"}
+                  ボリューム
                 </p>
                 <p className="mt-1">
-                  {locale === "en" ? "Characters: " : "文字数: "}
+                  文字数:{" "}
                   <span className="font-medium">
-                    {locale === "en"
-                      ? `${charCount.toLocaleString("en-US")} chars`
-                      : `${charCount.toLocaleString("ja-JP")} 文字`}
+                    {`${charCount.toLocaleString("ja-JP")} 文字`}
                   </span>
                 </p>
                 <p className="mt-1">
-                  {locale === "en" ? "Lines: " : "行数: "}
+                  行数:{" "}
                   <span className="font-medium">
-                    {locale === "en"
-                      ? `${lineCount} line${lineCount !== 1 ? "s" : ""}`
-                      : `${lineCount} 行`}
+                    {`${lineCount} 行`}
                   </span>
                 </p>
                 {approxMinutes && (
                   <p className="mt-1">
-                    {locale === "en" ? "Est. read time: " : "読了目安: "}
+                    読了目安:{" "}
                     <span className="font-medium">
-                      {locale === "en"
-                        ? `~${approxMinutes} min`
-                        : `${approxMinutes} 分程度`}
+                      {`${approxMinutes} 分程度`}
                     </span>
                   </p>
                 )}
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                 <p className="font-semibold text-slate-700">
-                  {locale === "en" ? "Tags / Sharing" : "タグ / 共有"}
+                  タグ / 共有
                 </p>
                 <p className="mt-1">
-                  {locale === "en" ? "Tags: " : "タグ数: "}
+                  タグ数:{" "}
                   <span className="font-medium">
-                    {locale === "en"
-                      ? `${tags.length} tag${tags.length !== 1 ? "s" : ""}`
-                      : `${tags.length.toLocaleString("ja-JP")} 個`}
+                    {`${tags.length.toLocaleString("ja-JP")} 個`}
                   </span>
                 </p>
                 <p className="mt-1">
-                  {locale === "en" ? "Share link: " : "共有リンク: "}
+                  共有リンク:{" "}
                   <span className="font-medium">
                     {doc.share_token
-                      ? locale === "en"
-                        ? "Active"
-                        : "有効"
-                      : locale === "en"
-                      ? "Not issued"
+                      ? "有効"
                       : "未発行"}
                   </span>
                 </p>
@@ -556,7 +530,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white">
                       AI
                     </span>
-                    {locale === "en" ? "AI Summary" : "AI 要約"}
+                    AI 要約
                   </h3>
                 </div>
                 <form action={regenerateSummary}>
@@ -573,7 +547,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           {doc.raw_content && (
             <section className="space-y-2">
               <h3 className="text-xs font-semibold text-slate-700">
-                {locale === "en" ? "Body" : "本文"}
+                本文
               </h3>
               <div className="rounded-md border border-slate-100 bg-slate-50 p-4">
                 <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800">
@@ -586,13 +560,11 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           {/* コメント */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold text-slate-700">
-              {locale === "en" ? "Comments" : "コメント"}
+              コメント
             </h3>
             {comments.length === 0 ? (
               <p className="text-[11px] text-slate-500">
-                {locale === "en"
-                  ? "No comments yet. Use this to keep notes or TODOs."
-                  : "まだコメントはありません。気づきや TODO をメモしておくのに使えます。"}
+                まだコメントはありません。気づきや TODO をメモしておくのに使えます。
               </p>
             ) : (
               <ul className="space-y-2">
@@ -608,9 +580,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                       dateTime={comment.created_at}
                       className="mt-1 block text-[10px] text-slate-400"
                     >
-                      {new Date(comment.created_at).toLocaleString(
-                        locale === "en" ? "en-US" : "ja-JP"
-                      )}
+                      {new Date(comment.created_at).toLocaleString("ja-JP")}
                     </time>
                   </li>
                 ))}
@@ -623,9 +593,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 name="content"
                 rows={3}
                 placeholder={
-                  locale === "en"
-                    ? "Write notes or TODOs about this document..."
-                    : "このドキュメントに関するメモや TODO を自由に書いてください。"
+                  "このドキュメントに関するメモや TODO を自由に書いてください。"
                 }
                 className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none ring-emerald-500/20 focus:bg-white focus:ring"
               />
@@ -634,7 +602,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   type="submit"
                   className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-800"
                 >
-                  {locale === "en" ? "Add comment" : "コメントを追加"}
+                  コメントを追加
                 </button>
               </div>
             </form>
@@ -644,12 +612,10 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           {versions.length > 0 && (
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-slate-700">
-                {locale === "en" ? "Version history" : "バージョン履歴"}
+                バージョン履歴
               </h3>
               <p className="text-[11px] text-slate-500">
-                {locale === "en"
-                  ? "Every edit is saved as a version. Click to view diff."
-                  : "編集保存のたびに、変更前の内容を履歴として保存しています。クリックすると詳細・比較画面を開きます。"}
+                編集保存のたびに、変更前の内容を履歴として保存しています。クリックすると詳細・比較画面を開きます。
               </p>
               <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 bg-slate-50">
                 {versions.map((v) => (
@@ -660,21 +626,17 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     <div className="flex flex-col">
                       <span className="font-medium text-slate-800">
                         {v.title ||
-                          (locale === "en" ? "(No title)" : "（タイトルなし）")}
+                          "（タイトルなし）"}
                       </span>
                       <span className="text-[10px] text-slate-500">
                         {formatJstDateTime(v.created_at) ?? v.created_at}
                       </span>
                     </div>
                     <Link
-                      href={
-                        locale === "en"
-                          ? `/documents/${doc.id}/versions/${v.id}?lang=en`
-                          : `/documents/${doc.id}/versions/${v.id}`
-                      }
+                      href={`/documents/${doc.id}/versions/${v.id}`}
                       className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[10px] font-medium text-slate-700 hover:bg-slate-100"
                     >
-                      {locale === "en" ? "Compare" : "比較表示"}
+                      比較表示
                     </Link>
                   </li>
                 ))}

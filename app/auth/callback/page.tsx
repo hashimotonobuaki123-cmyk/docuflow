@@ -3,15 +3,12 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
-import type { Locale } from "@/lib/i18n";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // redirectTo のクエリに ?lang=en が含まれているかどうかでロケールを判定
   const redirectTo = searchParams.get("redirectTo") || "";
-  const locale: Locale = redirectTo.includes("lang=en") ? "en" : "ja";
 
   useEffect(() => {
     let active = true;
@@ -55,9 +52,7 @@ export default function AuthCallbackPage() {
           DF
         </div>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          {locale === "en"
-            ? "Logging you in with Google..."
-            : "Google でログインしています…"}
+          Google でログインしています…
         </p>
       </div>
     </div>

@@ -5,11 +5,8 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 import { Logo } from "@/components/Logo";
 import { getSiteUrl } from "@/lib/getSiteUrl";
-import type { Locale } from "@/lib/i18n";
-import { useLocale } from "@/lib/useLocale";
 
 export default function SignupPage() {
-  const locale: Locale = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -26,36 +23,28 @@ export default function SignupPage() {
 
     if (!email || !password) {
       setError(
-        locale === "en"
-          ? "Please enter both email and password."
-          : "メールアドレスとパスワードを入力してください。",
+        "メールアドレスとパスワードを入力してください。",
       );
       return;
     }
 
     if (password !== confirmPassword) {
       setError(
-        locale === "en"
-          ? "Passwords do not match."
-          : "パスワードが一致しません。",
+        "パスワードが一致しません。",
       );
       return;
     }
 
     if (password.length < 6) {
       setError(
-        locale === "en"
-          ? "Password must be at least 6 characters."
-          : "パスワードは6文字以上で設定してください。",
+        "パスワードは6文字以上で設定してください。",
       );
       return;
     }
 
     if (!agreedToTerms) {
       setError(
-        locale === "en"
-          ? "You must agree to the terms of service."
-          : "利用規約への同意が必要です。",
+        "利用規約への同意が必要です。",
       );
       return;
     }
@@ -82,9 +71,7 @@ export default function SignupPage() {
         msg.includes("User already registered")
       ) {
         setStatus(
-          locale === "en"
-            ? "This email is already registered or you have sent too many requests. Please try logging in instead."
-            : "このメールアドレスは既に登録済みか、短時間にリクエストしすぎています。ログインを試してください。",
+          "このメールアドレスは既に登録済みか、短時間にリクエストしすぎています。ログインを試してください。",
         );
       } else {
         setError(msg);
@@ -93,9 +80,7 @@ export default function SignupPage() {
     }
 
     setStatus(
-      locale === "en"
-        ? "Your account has been created. Please check your email and click the confirmation link to complete registration."
-        : "アカウントを作成しました！メールに届いた確認リンクをクリックして登録を完了してください。",
+      "アカウントを作成しました！メールに届いた確認リンクをクリックして登録を完了してください。",
     );
   };
 
@@ -112,18 +97,18 @@ export default function SignupPage() {
     if (score <= 2)
       return {
         score,
-        label: locale === "en" ? "Weak" : "弱い",
+        label: "弱い",
         color: "bg-red-500",
       };
     if (score <= 3)
       return {
         score,
-        label: locale === "en" ? "Medium" : "普通",
+        label: "普通",
         color: "bg-amber-500",
       };
     return {
       score,
-      label: locale === "en" ? "Strong" : "強い",
+      label: "強い",
       color: "bg-emerald-500",
     };
   };
@@ -139,23 +124,11 @@ export default function SignupPage() {
           <div className="flex items-center justify-between">
             <Logo />
             <div className="flex items-center gap-3">
-              {/* Language toggle */}
               <Link
-                href={
-                  locale === "en"
-                    ? "/auth/signup"
-                    : "/auth/signup?lang=en"
-                }
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                <span>{locale === "en" ? "日本語" : "EN"}</span>
-              </Link>
-              <Link
-                href={locale === "en" ? "/auth/login?lang=en" : "/auth/login"}
+                href="/auth/login"
                 className="text-sm font-medium text-slate-600 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors"
               >
-                {locale === "en" ? "Back to login" : "ログインへ戻る"}
+                ログインへ戻る
               </Link>
             </div>
           </div>
@@ -167,12 +140,10 @@ export default function SignupPage() {
             {/* Welcome */}
             <div className="text-center mb-8 animate-fade-in-up">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                {locale === "en" ? "Create your account" : "アカウントを作成"}
+                アカウントを作成
               </h2>
               <p className="mt-2 text-slate-500 dark:text-slate-400">
-                {locale === "en"
-                  ? "Start using DocuFlow for free."
-                  : "無料でDocuFlowを始めましょう"}
+                無料でDocuFlowを始めましょう
               </p>
             </div>
 
@@ -203,7 +174,7 @@ export default function SignupPage() {
             <form onSubmit={handleSignup} className="space-y-5 animate-fade-in-up stagger-2">
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                  {locale === "en" ? "Email address" : "メールアドレス"}
+                  メールアドレス
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -225,7 +196,7 @@ export default function SignupPage() {
 
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                  {locale === "en" ? "Password" : "パスワード"}
+                  パスワード
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -240,7 +211,7 @@ export default function SignupPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={
-                      locale === "en" ? "At least 6 characters" : "6文字以上"
+                      "6文字以上"
                     }
                     className="input pl-12 pr-12 h-12"
                   />
@@ -284,7 +255,7 @@ export default function SignupPage() {
                           : "text-emerald-500"
                       }`}
                     >
-                      {locale === "en" ? "Password strength:" : "パスワード強度:"}{" "}
+                      パスワード強度:{" "}
                       {passwordStrength.label}
                     </p>
                   </div>
@@ -296,9 +267,7 @@ export default function SignupPage() {
                   htmlFor="confirmPassword"
                   className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
                 >
-                  {locale === "en"
-                    ? "Password (confirmation)"
-                    : "パスワード（確認）"}
+                  パスワード（確認）
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -313,9 +282,7 @@ export default function SignupPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={
-                      locale === "en"
-                        ? "Re-enter your password"
-                        : "パスワードを再入力"
+                      "パスワードを再入力"
                     }
                     className={`input pl-12 h-12 ${
                       confirmPassword && password !== confirmPassword
@@ -353,51 +320,26 @@ export default function SignupPage() {
                   htmlFor="terms"
                   className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer"
                 >
-                  {locale === "en" ? (
-                    <>
-                      <Link
-                        href="#"
-                        className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                      >
-                        Terms of Service
-                      </Link>
-                      <span className="text-slate-400 dark:text-slate-500">
-                        {" "}
-                        and{" "}
-                      </span>
-                      <Link
-                        href="#"
-                        className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                      >
-                        Privacy Policy
-                      </Link>
-                      <span className="text-slate-400 dark:text-slate-500">
-                        {" "}
-                        I agree.
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Link
-                        href="#"
-                        className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                      >
-                        利用規約
-                      </Link>
-                      <span className="text-slate-400 dark:text-slate-500">
-                        と
-                      </span>
-                      <Link
-                        href="#"
-                        className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                      >
-                        プライバシーポリシー
-                      </Link>
-                      <span className="text-slate-400 dark:text-slate-500">
-                        に同意します
-                      </span>
-                    </>
-                  )}
+                  <>
+                    <Link
+                      href="#"
+                      className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                    >
+                      利用規約
+                    </Link>
+                    <span className="text-slate-400 dark:text-slate-500">
+                      と
+                    </span>
+                    <Link
+                      href="#"
+                      className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                    >
+                      プライバシーポリシー
+                    </Link>
+                    <span className="text-slate-400 dark:text-slate-500">
+                      に同意します
+                    </span>
+                  </>
                 </label>
               </div>
 
@@ -413,17 +355,13 @@ export default function SignupPage() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                     <span>
-                      {locale === "en"
-                        ? "Creating your account..."
-                        : "アカウント作成中..."}
+                      アカウント作成中...
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <span>
-                      {locale === "en"
-                        ? "Create account"
-                        : "アカウントを作成"}
+                      アカウントを作成
                     </span>
                     <svg className="h-5 w-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -438,14 +376,12 @@ export default function SignupPage() {
 
             {/* Login Link */}
             <p className="text-center text-sm text-slate-600 dark:text-slate-400">
-              {locale === "en"
-                ? "Already have an account?"
-                : "すでにアカウントをお持ちですか？"}{" "}
+              すでにアカウントをお持ちですか？{" "}
               <Link
-                href={locale === "en" ? "/auth/login?lang=en" : "/auth/login"}
+                href="/auth/login"
                 className="font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors underline-offset-2 hover:underline"
               >
-                {locale === "en" ? "Log in" : "ログイン"}
+                ログイン
               </Link>
             </p>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Locale } from "@/lib/i18n";
 import {
   PLAN_NAMES,
   PLAN_DESCRIPTIONS,
@@ -8,7 +9,6 @@ import {
   PLAN_LIMITS,
   type SubscriptionPlan,
 } from "@/lib/subscription";
-import type { Locale } from "@/lib/i18n";
 
 interface SubscriptionPlansProps {
   currentPlan: SubscriptionPlan;
@@ -50,18 +50,14 @@ export function SubscriptionPlans({
         window.location.href = data.url;
       } else {
         alert(
-          locale === "en"
-            ? "Failed to create checkout session"
-            : "チェックアウトセッションの作成に失敗しました",
+          "チェックアウトセッションの作成に失敗しました",
         );
         setLoading(null);
       }
     } catch (error) {
       console.error("Failed to upgrade:", error);
       alert(
-        locale === "en"
-          ? "An error occurred"
-          : "エラーが発生しました",
+        "エラーが発生しました",
       );
       setLoading(null);
     }
@@ -98,14 +94,12 @@ export function SubscriptionPlans({
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-slate-900">
                   {PLAN_PRICES[plan] === 0
-                    ? locale === "en"
-                      ? "Free"
-                      : "無料"
+                    ? "無料"
                     : `$${PLAN_PRICES[plan]}`}
                 </span>
                 {PLAN_PRICES[plan] > 0 && (
                   <span className="text-xs text-slate-500">
-                    {locale === "en" ? "/month" : "/月"}
+                    {"/月"}
                   </span>
                 )}
               </div>
@@ -116,10 +110,8 @@ export function SubscriptionPlans({
                 <span className="text-emerald-600">✓</span>
                 <span>
                   {limits.documentLimit === null
-                    ? locale === "en"
-                      ? "Unlimited documents"
-                      : "ドキュメント数無制限"
-                    : `${limits.documentLimit} ${locale === "en" ? "documents" : "ドキュメント"}`}
+                    ? "ドキュメント数無制限"
+                    : `${limits.documentLimit} ${"ドキュメント"}`}
                 </span>
               </div>
               {subscriptionType === "organization" && (
@@ -127,10 +119,8 @@ export function SubscriptionPlans({
                   <span className="text-emerald-600">✓</span>
                   <span>
                     {limits.seatLimit === null
-                      ? locale === "en"
-                        ? "Unlimited members"
-                        : "メンバー数無制限"
-                      : `${limits.seatLimit} ${locale === "en" ? "members" : "メンバー"}`}
+                      ? "メンバー数無制限"
+                      : `${limits.seatLimit} ${"メンバー"}`}
                   </span>
                 </div>
               )}
@@ -138,19 +128,15 @@ export function SubscriptionPlans({
                 <span className="text-emerald-600">✓</span>
                 <span>
                   {limits.monthlyAICalls === null
-                    ? locale === "en"
-                      ? "Unlimited AI calls"
-                      : "AI呼び出し無制限"
-                    : `${limits.monthlyAICalls.toLocaleString()} ${locale === "en" ? "AI calls/month" : "AI呼び出し/月"}`}
+                    ? "AI呼び出し無制限"
+                    : `${limits.monthlyAICalls.toLocaleString()} ${"AI呼び出し/月"}`}
                 </span>
               </div>
               {limits.versionHistory && (
                 <div className="flex items-center gap-2">
                   <span className="text-emerald-600">✓</span>
                   <span>
-                    {locale === "en"
-                      ? "Version history"
-                      : "バージョン履歴"}
+                    {"バージョン履歴"}
                   </span>
                 </div>
               )}
@@ -158,9 +144,7 @@ export function SubscriptionPlans({
                 <div className="flex items-center gap-2">
                   <span className="text-emerald-600">✓</span>
                   <span>
-                    {locale === "en"
-                      ? "Priority support"
-                      : "優先サポート"}
+                    {"優先サポート"}
                   </span>
                 </div>
               )}
@@ -168,14 +152,14 @@ export function SubscriptionPlans({
 
             {isCurrent ? (
               <div className="rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-medium text-slate-700">
-                {locale === "en" ? "Current plan" : "現在のプラン"}
+                {"現在のプラン"}
               </div>
             ) : isEnterprise ? (
               <a
                 href="mailto:sales@docuflow.com"
                 className="block rounded-lg bg-slate-900 px-3 py-2 text-center text-xs font-medium text-white hover:bg-slate-800"
               >
-                {locale === "en" ? "Contact sales" : "営業に問い合わせ"}
+                {"営業に問い合わせ"}
               </a>
             ) : (
               <button
@@ -184,11 +168,7 @@ export function SubscriptionPlans({
                 className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 {loading === plan
-                  ? locale === "en"
-                    ? "Loading..."
-                    : "読み込み中..."
-                  : locale === "en"
-                  ? "Upgrade"
+                  ? "読み込み中..."
                   : "アップグレード"}
               </button>
             )}

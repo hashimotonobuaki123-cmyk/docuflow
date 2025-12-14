@@ -1,11 +1,10 @@
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/lib/supabaseClient";
-import type { Locale } from "@/lib/i18n";
-import { getLocaleFromParam } from "@/lib/i18n";
 import {
   getPersonalSubscription,
   getOrganizationSubscription,
@@ -29,23 +28,16 @@ type OrganizationRow = {
   billing_email: string | null;
 };
 
-type BillingSettingsPageProps = {
-  searchParams?: {
-    lang?: string;
-  };
-};
+export default async function BillingSettingsPage() {
 
-export default async function BillingSettingsPage({
-  searchParams,
-}: BillingSettingsPageProps) {
-  const locale: Locale = getLocaleFromParam(searchParams?.lang);
+  const locale: Locale = "ja";
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
 
   if (!userId) {
     const redirectTarget =
-      locale === "en" ? "/settings/billing?lang=en" : "/settings/billing";
+      "/settings/billing";
     redirect(`/auth/login?redirectTo=${encodeURIComponent(redirectTarget)}`);
   }
 
@@ -116,7 +108,7 @@ export default async function BillingSettingsPage({
       );
       const currentPeriodEnd = new Date(
         subscription.current_period_end * 1000,
-      ).toLocaleString(locale === "en" ? "en-US" : "ja-JP");
+      ).toLocaleString("ja-JP");
 
       subscriptionSummary = {
         status: subscription.status,
@@ -134,16 +126,14 @@ export default async function BillingSettingsPage({
           <div className="flex items-center gap-3">
             <Logo />
             <p className="text-sm text-slate-600">
-              {locale === "en" ? "Billing & plan settings" : "課金・プラン設定"}
+              {"課金・プラン設定"}
             </p>
           </div>
           <Link
-            href={locale === "en" ? "/settings?lang=en" : "/settings"}
+            href={"/settings"}
             className="text-xs text-slate-500 hover:text-slate-700"
           >
-            {locale === "en"
-              ? "← Back to settings"
-              : "← 設定トップへ戻る"}
+            {"← 設定トップへ戻る"}
           </Link>
         </div>
       </header>
@@ -151,35 +141,27 @@ export default async function BillingSettingsPage({
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-slate-900">
-            {locale === "en" ? "Current plan" : "現在のプラン"}
+            {"現在のプラン"}
           </h2>
           {!primaryOrg ? (
             <p className="text-xs text-slate-600">
-              {locale === "en"
-                ? "No organization has been created yet. Please create a team first from "
-                : "まだ組織が作成されていません。まずは "}
+              {"まだ組織が作成されていません。まずは"}
               <Link
-                href={
-                  locale === "en"
-                    ? "/settings/organizations?lang=en"
-                    : "/settings/organizations"
-                }
+                href={"/settings/organizations"}
                 className="font-medium text-emerald-600 underline-offset-2 hover:underline"
               >
-                {locale === "en" ? "Organization settings" : "組織設定"}
+                {"組織設定"}
               </Link>
-              {locale === "en"
-                ? "."
-                : "からチームを作成してください。"}
+              {"からチームを作成してください。"}
             </p>
           ) : (
             <div className="space-y-3 text-xs text-slate-700">
               <p>
-                {locale === "en" ? "Organization:" : "組織名:"}{" "}
+                {"組織名:"}{" "}
                 <span className="font-medium">{primaryOrg.name}</span>
               </p>
               <p>
-                {locale === "en" ? "Plan:" : "プラン:"}{" "}
+                {"プラン:"}{" "}
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-800">
                   {primaryOrg.plan.toUpperCase()}
                 </span>
@@ -190,7 +172,7 @@ export default async function BillingSettingsPage({
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[11px] font-semibold text-slate-600">
-                      {locale === "en" ? "Members" : "メンバー数"}
+                      {"メンバー数"}
                     </p>
                     <span className="text-xs font-medium text-slate-900">
                       {memberCount} / {primaryOrg.seat_limit ?? "∞"}
@@ -213,63 +195,7 @@ export default async function BillingSettingsPage({
                     </div>
                   )}
                   <p className="mt-2 text-[11px] text-slate-500">
-                    {locale === "en"
-                      ? primaryOrg.seat_limit
-                        ? `${primaryOrg.seat_limit - memberCount} seats remaining`
-                        : "Unlimited seats on this plan"
-                      : primaryOrg.seat_limit
-                      ? `残り ${primaryOrg.seat_limit - memberCount} 席`
-                      : "このプランは席数無制限"}
-                  </p>
-                </div>
-
-                {/* Document Usage Meter */}
-                <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[11px] font-semibold text-slate-600">
-                      {locale === "en" ? "Documents" : "ドキュメント数"}
-                    </p>
-                    <span className="text-xs font-medium text-slate-900">
-                      {documentCount} / {primaryOrg.document_limit ?? "∞"}
-                    </span>
-                  </div>
-                  {primaryOrg.document_limit && (
-                    <>
-                      <div className="relative h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-                        <div
-                          className={`h-2 rounded-full transition-all ${
-                            documentCount / primaryOrg.document_limit > 0.9
-                              ? "bg-red-500"
-                              : documentCount / primaryOrg.document_limit > 0.7
-                              ? "bg-amber-500"
-                              : "bg-emerald-500"
-                          }`}
-                          style={{
-                            width: `${Math.min(100, (documentCount / primaryOrg.document_limit) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                      {documentCount / primaryOrg.document_limit >= 0.8 && (
-                        <div className="mt-2">
-                          <SubscriptionLimitWarning
-                            type="document"
-                            currentCount={documentCount}
-                            limit={primaryOrg.document_limit}
-                            locale={locale}
-                            subscriptionType="organization"
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <p className="mt-2 text-[11px] text-slate-500">
-                    {locale === "en"
-                      ? primaryOrg.document_limit
-                        ? `${primaryOrg.document_limit - documentCount} documents remaining`
-                        : "Unlimited documents on this plan"
-                      : primaryOrg.document_limit
-                      ? `残り ${primaryOrg.document_limit - documentCount} 件`
-                      : "このプランはドキュメント数無制限"}
+                    {primaryOrg.document_limit ? `残り ${primaryOrg.document_limit - documentCount} 件` : "このプランはドキュメント数無制限"}
                   </p>
                 </div>
               </div>
@@ -277,53 +203,39 @@ export default async function BillingSettingsPage({
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                   <p className="text-[11px] font-semibold text-slate-600">
-                    {locale === "en"
-                      ? "Billing email"
-                      : "請求先メールアドレス"}
+                    {"請求先メールアドレス"}
                   </p>
                   <p className="mt-1 text-sm text-slate-900">
                     {primaryOrg.billing_email ??
-                      (locale === "en"
-                        ? "Managed in Stripe (entered at Checkout)"
-                        : "Stripe 上で管理（Checkout で入力）")}
+                      ("Stripe 上で管理（Checkout で入力）")}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    {locale === "en"
-                      ? "The email entered in Stripe Checkout will receive billing notifications."
-                      : "Stripe Checkout で入力したメールアドレスが請求通知の送付先になります。"}
+                    {"Stripe Checkout で入力したメールアドレスが請求通知の送付先になります。"}
                   </p>
                 </div>
 
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                   <p className="text-[11px] font-semibold text-slate-600">
-                    {locale === "en"
-                      ? "Subscription status"
-                      : "サブスクリプション状況"}
+                    {"サブスクリプション状況"}
                   </p>
                   {subscriptionSummary ? (
                     <div className="mt-1 space-y-1 text-sm text-slate-900">
                       <p>
-                        {locale === "en" ? "Status: " : "ステータス: "}
+                        {"ステータス: "}
                         {subscriptionSummary.status}
                       </p>
                       <p>
-                        {locale === "en"
-                          ? "Current billing period ends: "
-                          : "現在の請求期間の終了: "}
+                        {"現在の請求期間の終了:"}
                         {subscriptionSummary.currentPeriodEnd}
                       </p>
                     </div>
                   ) : (
                     <p className="mt-1 text-sm text-slate-900">
-                      {locale === "en"
-                        ? "There is no active subscription yet."
-                        : "まだ有効なサブスクリプションはありません。"}
+                      {"まだ有効なサブスクリプションはありません。"}
                     </p>
                   )}
                   <p className="mt-1 text-[11px] text-slate-500">
-                    {locale === "en"
-                      ? "For detailed billing history, use the Stripe dashboard."
-                      : "詳細な請求履歴は Stripe ダッシュボードから確認できます。"}
+                    {"詳細な請求履歴は Stripe ダッシュボードから確認できます。"}
                   </p>
                 </div>
               </div>
@@ -334,12 +246,10 @@ export default async function BillingSettingsPage({
         {/* プラン選択セクション */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold text-slate-900">
-            {locale === "en" ? "Available plans" : "利用可能なプラン"}
+            {"利用可能なプラン"}
           </h2>
           <p className="mb-4 text-xs text-slate-600">
-            {locale === "en"
-              ? "Choose a plan that fits your needs. You can upgrade or downgrade at any time."
-              : "ニーズに合わせてプランを選択できます。いつでもアップグレードまたはダウングレード可能です。"}
+            {"ニーズに合わせてプランを選択できます。いつでもアップグレードまたはダウングレード可能です。"}
           </p>
           <SubscriptionPlans
             currentPlan={effectivePlan}
@@ -369,14 +279,10 @@ export default async function BillingSettingsPage({
         {(personalSub.stripeCustomerId || primaryOrg?.stripe_customer_id) && (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-2 text-sm font-semibold text-slate-900">
-              {locale === "en"
-                ? "Manage subscription"
-                : "サブスクリプション管理"}
+              {"サブスクリプション管理"}
             </h2>
             <p className="mb-4 text-xs text-slate-600">
-              {locale === "en"
-                ? "Update payment methods, view billing history, and manage your subscription through Stripe Customer Portal."
-                : "Stripe Customer Portal から支払い方法の更新、請求履歴の確認、サブスクリプションの管理ができます。"}
+              {"Stripe Customer Portal から支払い方法の更新、請求履歴の確認、サブスクリプションの管理ができます。"}
             </p>
             <form
               action="/api/billing/create-portal-session"
@@ -387,9 +293,7 @@ export default async function BillingSettingsPage({
                 type="submit"
                 className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-slate-800"
               >
-                {locale === "en"
-                  ? "Open billing portal"
-                  : "請求ポータルを開く"}
+                {"請求ポータルを開く"}
               </button>
             </form>
           </section>

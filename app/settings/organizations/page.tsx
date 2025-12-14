@@ -150,24 +150,24 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-4">
             <Link
-              href={locale === "en" ? "/app?lang=en" : "/"}
+              href={"/"}
               className="hover:opacity-80 transition-opacity"
             >
               <Logo size="sm" />
             </Link>
             <span className="text-sm text-slate-500">
-              {locale === "en" ? "Organization settings" : "組織設定"}
+              {"組織設定"}
             </span>
           </div>
           <Link
-            href={locale === "en" ? "/app?lang=en" : "/app"}
+            href={"/app"}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span>
-              {locale === "en" ? "Back to dashboard" : "ダッシュボードへ戻る"}
+              {"ダッシュボードへ戻る"}
             </span>
           </Link>
         </div>
@@ -178,7 +178,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
         {action === "new" && (
           <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-lg font-semibold text-slate-900">
-              {locale === "en" ? "Create a new organization" : "新しい組織を作成"}
+              {"新しい組織を作成"}
             </h2>
             <form action={createOrgAction} className="space-y-4">
               <div>
@@ -186,7 +186,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   htmlFor="name"
                   className="mb-1 block text-sm font-medium text-slate-700"
                 >
-                  {locale === "en" ? "Organization name" : "組織名"}{" "}
+                  {"組織名"}{" "}
                   <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -194,9 +194,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   id="name"
                   name="name"
                   required
-                  placeholder={
-                    locale === "en" ? "e.g. Acme Inc." : "例: 株式会社ABC"
-                  }
+                  placeholder="例: 株式会社ABC"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
                 />
               </div>
@@ -205,24 +203,18 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   htmlFor="slug"
                   className="mb-1 block text-sm font-medium text-slate-700"
                 >
-                  {locale === "en"
-                    ? "Slug (for URL, alphanumeric)"
-                    : "スラッグ（URL用・英数字）"}
+                  {"スラッグ（URL用・英数字）"}
                 </label>
                 <input
                   type="text"
                   id="slug"
                   name="slug"
-                  placeholder={
-                    locale === "en" ? "e.g. acme-corp" : "例: abc-corp"
-                  }
+                  placeholder="例: abc-corp"
                   pattern="[a-z0-9-]+"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
                 />
                 <p className="mt-1 text-xs text-slate-500">
-                  {locale === "en"
-                    ? "If empty, it will be generated automatically from the organization name."
-                    : "空欄の場合、組織名から自動生成されます"}
+                  {"空欄の場合、組織名から自動生成されます"}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -230,17 +222,13 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   type="submit"
                   className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-400 transition-colors"
                 >
-                  {locale === "en" ? "Create" : "作成する"}
+                  {"作成する"}
                 </button>
                 <Link
-                  href={
-                    locale === "en"
-                      ? "/settings/organizations?lang=en"
-                      : "/settings/organizations"
-                  }
+                  href="/settings/organizations"
                   className="text-sm text-slate-600 hover:text-slate-900"
                 >
-                  {locale === "en" ? "Cancel" : "キャンセル"}
+                  {"キャンセル"}
                 </Link>
               </div>
             </form>
@@ -251,26 +239,18 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
         <section className="mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">
-              {locale === "en"
-                ? `Organizations you belong to (${organizations.length})`
-                : `所属組織 (${organizations.length})`}
+              {`所属組織 (${organizations.length})`}
             </h2>
             {action !== "new" && (
               <Link
-                href={
-                  locale === "en"
-                    ? "/settings/organizations?action=new&lang=en"
-                    : "/settings/organizations?action=new"
-                }
+                href="/settings/organizations?action=new"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-400 transition-colors"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>
-                  {locale === "en"
-                    ? "Create new organization"
-                    : "新しい組織を作成"}
+                  {"新しい組織を作成"}
                 </span>
               </Link>
             )}
@@ -282,27 +262,17 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                 🏢
               </div>
               <p className="mb-2 text-sm font-medium text-slate-900">
-                {locale === "en"
-                  ? "You don't belong to any organization yet."
-                  : "まだ組織に所属していません"}
+                {"まだ組織に所属していません"}
               </p>
               <p className="mb-4 text-xs text-slate-500">
-                {locale === "en"
-                  ? "Create an organization to start sharing documents with your team."
-                  : "組織を作成して、チームでドキュメントを共有しましょう"}
+                {"組織を作成して、チームでドキュメントを共有しましょう"}
               </p>
               <Link
-                href={
-                  locale === "en"
-                    ? "/settings/organizations?action=new&lang=en"
-                    : "/settings/organizations?action=new"
-                }
+                href="/settings/organizations?action=new"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-400 transition-colors"
               >
                 <span>
-                  {locale === "en"
-                    ? "Create your first organization"
-                    : "最初の組織を作成"}
+                  {"最初の組織を作成"}
                 </span>
               </Link>
             </div>
@@ -364,9 +334,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   selectedOrg.role
                 )}`}
               >
-                {locale === "en"
-                  ? `You are ${getRoleDisplayName(selectedOrg.role)}`
-                  : `あなたは ${getRoleDisplayName(selectedOrg.role)}`}
+                {`あなたは ${getRoleDisplayName(selectedOrg.role)}`}
               </span>
             </div>
 
@@ -376,7 +344,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                      {locale === "en" ? "Documents" : "ドキュメント"}
+                      {"ドキュメント"}
                     </p>
                     <p className="mt-1 text-2xl font-bold text-slate-900">{orgDocumentCount}</p>
                   </div>
@@ -392,7 +360,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     />
                   </div>
                   <p className="mt-1 text-[10px] text-slate-500">
-                    {locale === "en" ? "No limit on Free plan" : "Free プランは無制限"}
+                    {"Free プランは無制限"}
                   </p>
                 </div>
               </div>
@@ -401,7 +369,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                      {locale === "en" ? "Members" : "メンバー"}
+                      {"メンバー"}
                     </p>
                     <p className="mt-1 text-2xl font-bold text-slate-900">{members.length}</p>
                   </div>
@@ -417,7 +385,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     />
                   </div>
                   <p className="mt-1 text-[10px] text-slate-500">
-                    {locale === "en" ? "Up to 10 on Free plan" : "Free プランは 10 名まで"}
+                    {"Free プランは 10 名まで"}
                   </p>
                 </div>
               </div>
@@ -426,7 +394,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                      {locale === "en" ? "Activity (30d)" : "アクティビティ (30日)"}
+                      {"アクティビティ (30日)"}
                     </p>
                     <p className="mt-1 text-2xl font-bold text-slate-900">{orgActivityCount}</p>
                   </div>
@@ -442,7 +410,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     />
                   </div>
                   <p className="mt-1 text-[10px] text-slate-500">
-                    {locale === "en" ? "Actions in last 30 days" : "過去30日間の操作数"}
+                    {"過去30日間の操作数"}
                   </p>
                 </div>
               </div>
@@ -451,9 +419,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
             {/* メンバー一覧 */}
             <div className="mb-6">
               <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                {locale === "en"
-                  ? `Members (${members.length})`
-                  : `メンバー (${members.length}人)`}
+                {`メンバー (${members.length}人)`}
               </h3>
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
                 {members.map((member) => (
@@ -467,19 +433,11 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-900">
-                          {member.user_id === userId
-                            ? locale === "en"
-                              ? "You"
-                              : "あなた"
-                            : locale === "en"
-                            ? `User ${member.user_id.slice(0, 8)}...`
-                            : `ユーザー ${member.user_id.slice(0, 8)}...`}
+                          {member.user_id === userId ? "あなた" : `ユーザー ${member.user_id.slice(0, 8)}...`}
                         </p>
                         <p className="text-[10px] text-slate-500">
-                          {new Date(member.created_at).toLocaleDateString(
-                            locale === "en" ? "en-US" : "ja-JP",
-                          )}{" "}
-                          {locale === "en" ? "joined" : "から参加"}
+                          {new Date(member.created_at).toLocaleDateString("ja-JP")}{" "}
+                          {"から参加"}
                         </p>
                       </div>
                     </div>
@@ -498,7 +456,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
             {/* ロール権限の説明 */}
             <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                {locale === "en" ? "Role Permissions" : "ロールと権限"}
+                {"ロールと権限"}
               </h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg bg-white p-3 border border-emerald-100">
@@ -509,15 +467,15 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   <ul className="space-y-1 text-[10px] text-slate-600">
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "Delete organization" : "組織の削除"}
+                      {"組織の削除"}
                     </li>
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "Manage billing" : "課金設定の管理"}
+                      {"課金設定の管理"}
                     </li>
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "All admin permissions" : "全ての管理者権限"}
+                      {"全ての管理者権限"}
                     </li>
                   </ul>
                 </div>
@@ -529,15 +487,15 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   <ul className="space-y-1 text-[10px] text-slate-600">
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "Invite members" : "メンバーの招待"}
+                      {"メンバーの招待"}
                     </li>
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "Remove members" : "メンバーの削除"}
+                      {"メンバーの削除"}
                     </li>
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "All member permissions" : "全てのメンバー権限"}
+                      {"全てのメンバー権限"}
                     </li>
                   </ul>
                 </div>
@@ -549,15 +507,15 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                   <ul className="space-y-1 text-[10px] text-slate-600">
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "View all documents" : "ドキュメントの閲覧"}
+                      {"ドキュメントの閲覧"}
                     </li>
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "Create documents" : "ドキュメントの作成"}
+                      {"ドキュメントの作成"}
                     </li>
                     <li className="flex items-center gap-1">
                       <span className="text-emerald-500">✓</span>
-                      {locale === "en" ? "Comment & share" : "コメント・共有"}
+                      {"コメント・共有"}
                     </li>
                   </ul>
                 </div>
@@ -568,7 +526,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
             {userRole && userRole !== "member" && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                  {locale === "en" ? "Invite new members" : "新しいメンバーを招待"}
+                  {"新しいメンバーを招待"}
                 </h3>
                 <form action={inviteAction} className="flex gap-2">
                   <input type="hidden" name="organizationId" value={selectedOrg.id} />
@@ -576,11 +534,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     type="email"
                     name="email"
                     required
-                    placeholder={
-                      locale === "en"
-                        ? "Email address to invite"
-                        : "招待するメールアドレス"
-                    }
+                    placeholder="招待するメールアドレス"
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none ring-emerald-500/20 focus:ring"
                   />
                   <select
@@ -589,15 +543,15 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
                   >
                     <option value="member">
-                      {locale === "en" ? "Member" : "メンバー"}
+                      {"メンバー"}
                     </option>
                     {userRole === "owner" && (
                       <>
                         <option value="admin">
-                          {locale === "en" ? "Admin" : "管理者"}
+                          {"管理者"}
                         </option>
                         <option value="owner">
-                          {locale === "en" ? "Owner" : "オーナー"}
+                          {"オーナー"}
                         </option>
                       </>
                     )}
@@ -606,13 +560,11 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                     type="submit"
                     className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-400 transition-colors"
                   >
-                    {locale === "en" ? "Invite" : "招待"}
+                    {"招待"}
                   </button>
                 </form>
                 <p className="mt-2 text-xs text-slate-500">
-                  {locale === "en"
-                    ? "An invite link will be generated. When the recipient clicks it, they can join the organization."
-                    : "招待リンクが生成され、相手がリンクをクリックすると組織に参加できます"}
+                  {"招待リンクが生成され、相手がリンクをクリックすると組織に参加できます"}
                 </p>
               </div>
             )}

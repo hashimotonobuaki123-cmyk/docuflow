@@ -5,11 +5,8 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 import { Logo } from "@/components/Logo";
 import { getSiteUrl } from "@/lib/getSiteUrl";
-import type { Locale } from "@/lib/i18n";
-import { useLocale } from "@/lib/useLocale";
 
 export default function ForgotPasswordPage() {
-  const locale: Locale = useLocale();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +19,7 @@ export default function ForgotPasswordPage() {
 
     if (!email) {
       setError(
-        locale === "en"
-          ? "Email address is required to reset your password."
-          : "パスワードリセットにはメールアドレスが必要です。",
+        "パスワードリセットにはメールアドレスが必要です。",
       );
       return;
     }
@@ -52,9 +47,7 @@ export default function ForgotPasswordPage() {
     }
 
     setStatus(
-      locale === "en"
-        ? "We’ve sent you an email with a link to reset your password. Please follow the instructions in that email."
-        : "パスワード再設定用のメールを送信しました。メール内のリンクから新しいパスワードを設定してください。",
+      "パスワード再設定用のメールを送信しました。メール内のリンクから新しいパスワードを設定してください。",
     );
   };
 
@@ -65,16 +58,14 @@ export default function ForgotPasswordPage() {
           <div className="flex items-center gap-3">
             <Logo />
             <p className="text-[11px] text-slate-500">
-              {locale === "en"
-                ? "Forgot your password?"
-                : "パスワードをお忘れですか？"}
+              パスワードをお忘れですか？
             </p>
           </div>
           <Link
-            href={locale === "en" ? "/auth/login?lang=en" : "/auth/login"}
+            href="/auth/login"
             className="text-xs font-medium text-slate-600 underline-offset-4 hover:underline"
           >
-            {locale === "en" ? "Back to login" : "ログインへ戻る"}
+            ログインへ戻る
           </Link>
         </div>
       </header>
@@ -83,14 +74,10 @@ export default function ForgotPasswordPage() {
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-base font-semibold text-slate-900">
-              {locale === "en"
-                ? "Send password reset email"
-                : "パスワードリセットメールを送信"}
+              パスワードリセットメールを送信
             </h2>
             <p className="text-xs text-slate-500">
-              {locale === "en"
-                ? "Enter the email address associated with your account."
-                : "アカウントに登録しているメールアドレスを入力してください。"}
+              アカウントに登録しているメールアドレスを入力してください。
             </p>
           </div>
 
@@ -112,7 +99,7 @@ export default function ForgotPasswordPage() {
                 htmlFor="email"
                 className="mb-1 block text-xs font-medium text-slate-700"
               >
-                {locale === "en" ? "Email address" : "メールアドレス"}
+                メールアドレス
               </label>
               <input
                 id="email"
@@ -130,13 +117,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading
-                ? locale === "en"
-                  ? "Sending..."
-                  : "送信中..."
-                : locale === "en"
-                ? "Send reset email"
-                : "リセットメールを送信"}
+              {loading ? "送信中..." : "リセットメールを送信"}
             </button>
           </form>
         </section>

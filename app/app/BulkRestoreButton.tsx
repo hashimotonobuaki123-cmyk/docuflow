@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { Locale } from "@/lib/i18n";
-import { useLocale } from "@/lib/useLocale";
 
 type Props = {
   formId: string;
@@ -11,7 +9,6 @@ type Props = {
 export function BulkRestoreButton({ formId }: Props) {
   const [open, setOpen] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
-  const locale: Locale = useLocale();
 
   const handleOpen = () => {
     setOpen(true);
@@ -62,28 +59,24 @@ export function BulkRestoreButton({ formId }: Props) {
           checked={selectAll}
           onChange={handleToggleSelectAll}
         />
-        <span>{locale === "en" ? "Select all" : "すべて選択"}</span>
+        <span>{"すべて選択"}</span>
       </label>
       <button
         type="button"
         onClick={handleOpen}
         className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50"
       >
-        ♻ {locale === "en" ? "Bulk restore" : "一括復元"}
+        ♻ {"一括復元"}
       </button>
 
       {open && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
           <div className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-lg">
             <p className="text-xs font-semibold text-slate-900">
-              {locale === "en"
-                ? "Restore archived documents in bulk (including selected ones)?"
-                : "アーカイブされたドキュメント（選択中のものを含む）を一括で復元しますか？"}
+              {"アーカイブされたドキュメント（選択中のものを含む）を一括で復元しますか？"}
             </p>
             <p className="mt-2 text-[11px] text-slate-500">
-              {locale === "en"
-                ? "Restored documents will move back to the active list."
-                : "復元すると、通常の一覧（アクティブなドキュメント）に戻ります。"}
+              {"復元すると、通常の一覧（アクティブなドキュメント）に戻ります。"}
             </p>
             <div className="mt-4 flex justify-end gap-2 text-[11px]">
               <button
@@ -91,14 +84,14 @@ export function BulkRestoreButton({ formId }: Props) {
                 onClick={handleCancel}
                 className="rounded-full border border-slate-300 bg-white px-3 py-1 text-slate-600 hover:bg-slate-50"
               >
-                {locale === "en" ? "Cancel" : "やめる"}
+                {"やめる"}
               </button>
               <button
                 type="button"
                 onClick={handleConfirm}
                 className="rounded-full bg-emerald-500 px-3 py-1 font-semibold text-white hover:bg-emerald-600"
               >
-                {locale === "en" ? "Yes, restore" : "はい、復元する"}
+                {"はい、復元する"}
               </button>
             </div>
           </div>

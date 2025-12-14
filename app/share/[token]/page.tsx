@@ -2,8 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Logo } from "@/components/Logo";
-import type { Locale } from "@/lib/i18n";
-import { getLocaleFromParam } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +19,7 @@ export default async function PublicSharePage({
   searchParams,
 }: PageProps) {
   const { token } = await params;
-  const resolvedSearchParams = await searchParams;
-  const locale: Locale = getLocaleFromParam(resolvedSearchParams?.lang);
+  void (await searchParams);
 
   const { data, error } = await supabase
     .from("documents")
@@ -70,27 +67,19 @@ export default async function PublicSharePage({
             <Logo />
             <div className="leading-tight">
               <p className="text-xs font-semibold text-emerald-600">
-                {locale === "en" ? "Public view" : "公開ビュー"}
+                公開ビュー
               </p>
               <h1 className="text-lg font-semibold tracking-tight text-slate-900">
-                {locale === "en"
-                  ? "Shared document"
-                  : "共有されたドキュメント"}
+                共有されたドキュメント
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
             <Link
-              href={
-                locale === "en"
-                  ? "/auth/login?lang=en"
-                  : "/auth/login"
-              }
+              href="/auth/login"
               className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
-              {locale === "en"
-                ? "Log in to your workspace"
-                : "ログインして自分のワークスペースへ"}
+              ログインして自分のワークスペースへ
             </Link>
           </div>
         </div>
@@ -110,9 +99,7 @@ export default async function PublicSharePage({
                   </span>
                 )}
                 <time dateTime={doc.created_at}>
-                  {new Date(doc.created_at).toLocaleString(
-                    locale === "en" ? "en-US" : "ja-JP",
-                  )}
+                  {new Date(doc.created_at).toLocaleString("ja-JP")}
                 </time>
               </div>
             </div>
@@ -134,7 +121,7 @@ export default async function PublicSharePage({
           {doc.summary && (
             <section className="space-y-2 rounded-md bg-slate-50 p-4">
               <h3 className="text-xs font-semibold text-slate-700">
-                {locale === "en" ? "Summary" : "要約"}
+                要約
               </h3>
               <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-700">
                 {doc.summary}
@@ -145,7 +132,7 @@ export default async function PublicSharePage({
           {doc.raw_content && (
             <section className="space-y-2">
               <h3 className="text-xs font-semibold text-slate-700">
-                {locale === "en" ? "Body" : "本文"}
+                本文
               </h3>
               <div className="rounded-md border border-slate-100 bg-slate-50 p-4">
                 <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800">

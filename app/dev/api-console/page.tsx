@@ -3,13 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import type { Locale } from "@/lib/i18n";
-import { useLocale } from "@/lib/useLocale";
 
 type HttpMethod = "LIST" | "GET";
 
 export default function ApiConsolePage() {
-  const locale: Locale = useLocale();
   const [baseUrl, setBaseUrl] = useState("https://docuflow-azure.vercel.app");
   const [apiKey, setApiKey] = useState("");
   const [method, setMethod] = useState<HttpMethod>("LIST");
@@ -61,7 +58,7 @@ export default function ApiConsolePage() {
             href="/"
             className="text-xs text-slate-500 hover:text-slate-700"
           >
-            {locale === "en" ? "← Back to top" : "← トップに戻る"}
+            {"← トップに戻る"}
           </Link>
         </div>
       </header>
@@ -72,9 +69,7 @@ export default function ApiConsolePage() {
             DocuFlow API Playground
           </h1>
           <p className="text-xs text-slate-600">
-            {locale === "en"
-              ? "A simple console for trying the `/api/documents` endpoint directly from the browser using `X-API-Key`."
-              : "`X-API-Key` を使って、ブラウザから直接 `/api/documents` エンドポイントを試せる簡易コンソールです。"}
+            {"`X-API-Key` を使って、ブラウザから直接 `/api/documents` エンドポイントを試せる簡易コンソールです。"}
           </p>
         </section>
 
@@ -125,11 +120,7 @@ export default function ApiConsolePage() {
                 className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 value={documentId}
                 onChange={(e) => setDocumentId(e.target.value)}
-                placeholder={
-                  locale === "en"
-                    ? "optional (not required for LIST)"
-                    : "optional (LIST の場合は不要)"
-                }
+                placeholder={"optional (LIST の場合は不要)"}
                 disabled={method === "LIST"}
               />
             </div>
@@ -151,9 +142,7 @@ export default function ApiConsolePage() {
           </p>
           <pre className="max-h-80 overflow-auto whitespace-pre-wrap text-[11px]">
             {responseText ??
-              (locale === "en"
-                ? "// Response will be displayed here"
-                : "// ここにレスポンスが表示されます")}
+              ("// ここにレスポンスが表示されます")}
           </pre>
         </section>
       </main>

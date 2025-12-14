@@ -3,8 +3,6 @@ import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { logActivity } from "@/lib/activityLog";
-import type { Locale } from "@/lib/i18n";
-import { getLocaleFromParam } from "@/lib/i18n";
 
 type PageProps = {
   params: {
@@ -94,7 +92,7 @@ async function updateDocument(formData: FormData) {
 
 export default async function EditDocumentPage({ params, searchParams }: PageProps) {
   const { id } = params;
-  const locale: Locale = getLocaleFromParam(searchParams?.lang);
+  void searchParams;
 
   const { data, error } = await supabase
     .from("documents")
@@ -123,7 +121,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
               DocuFlow
             </h1>
             <p className="text-sm text-slate-500">
-              {locale === "en" ? "Edit document" : "ドキュメント編集"}
+              ドキュメント編集
             </p>
           </div>
         </div>
@@ -132,9 +130,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
       <main className="mx-auto max-w-4xl px-4 py-8">
         <section className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-base font-semibold text-slate-800">
-            {locale === "en"
-              ? "Edit document information"
-              : "ドキュメント情報を編集"}
+            ドキュメント情報を編集
           </h2>
           <form action={updateDocument} className="space-y-4">
             <input type="hidden" name="id" value={doc.id} />
@@ -144,7 +140,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
                 htmlFor="title"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                {locale === "en" ? "Title" : "タイトル"}{" "}
+                タイトル{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
@@ -161,7 +157,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
                 htmlFor="category"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                {locale === "en" ? "Category" : "カテゴリ"}
+                カテゴリ
               </label>
               <input
                 id="category"
@@ -176,13 +172,11 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
                 htmlFor="rawContent"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                {locale === "en" ? "Body" : "本文"}{" "}
+                本文{" "}
                 <span className="text-red-500">*</span>
               </label>
               <p className="mb-2 text-xs text-slate-500">
-                {locale === "en"
-                  ? "The updated body will be used to regenerate the summary and tags."
-                  : "編集後の本文をもとに、要約とタグを再生成します。"}
+                編集後の本文をもとに、要約とタグを再生成します。
               </p>
               <textarea
                 id="rawContent"
@@ -196,15 +190,13 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
 
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-slate-500">
-                {locale === "en"
-                  ? "Saving will also update the AI-generated summary and tags."
-                  : "保存すると、AI による要約とタグも更新されます。"}
+                保存すると、AI による要約とタグも更新されます。
               </p>
               <button
                 type="submit"
                 className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-800"
               >
-                {locale === "en" ? "Update & regenerate summary" : "更新して再要約"}
+                更新して再要約
               </button>
             </div>
           </form>

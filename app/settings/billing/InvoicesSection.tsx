@@ -47,7 +47,7 @@ export function InvoicesSection({
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
     return date.toLocaleDateString(
-      locale === "en" ? "en-US" : "ja-JP",
+      "ja-JP",
       {
         year: "numeric",
         month: "short",
@@ -57,7 +57,7 @@ export function InvoicesSection({
   };
 
   const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat(locale === "en" ? "en-US" : "ja-JP", {
+    return new Intl.NumberFormat("ja-JP", {
       style: "currency",
       currency: currency.toUpperCase(),
     }).format(amount / 100);
@@ -66,19 +66,19 @@ export function InvoicesSection({
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; class: string }> = {
       paid: {
-        label: locale === "en" ? "Paid" : "支払済み",
+        label: "支払済み",
         class: "bg-emerald-100 text-emerald-800",
       },
       open: {
-        label: locale === "en" ? "Open" : "未払い",
+        label: "未払い",
         class: "bg-amber-100 text-amber-800",
       },
       void: {
-        label: locale === "en" ? "Void" : "無効",
+        label: "無効",
         class: "bg-slate-100 text-slate-800",
       },
       uncollectible: {
-        label: locale === "en" ? "Uncollectible" : "回収不能",
+        label: "回収不能",
         class: "bg-red-100 text-red-800",
       },
     };
@@ -115,14 +115,12 @@ export function InvoicesSection({
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6">
       <h3 className="mb-4 text-sm font-semibold text-slate-900">
-        {locale === "en" ? "Billing history" : "請求履歴"}
+        {"請求履歴"}
       </h3>
 
       {invoices.length === 0 ? (
         <p className="text-sm text-slate-600">
-          {locale === "en"
-            ? "No invoices yet."
-            : "請求書はまだありません。"}
+          {"請求書はまだありません。"}
         </p>
       ) : (
         <div className="space-y-2">
@@ -150,7 +148,7 @@ export function InvoicesSection({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-200"
-                    title={locale === "en" ? "Download PDF" : "PDFをダウンロード"}
+                    title={"PDFをダウンロード"}
                   >
                     <Download className="h-4 w-4" />
                   </a>
@@ -161,7 +159,7 @@ export function InvoicesSection({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-200"
-                    title={locale === "en" ? "View invoice" : "請求書を表示"}
+                    title={"請求書を表示"}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
