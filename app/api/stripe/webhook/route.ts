@@ -28,6 +28,45 @@ async function markWebhookEvent(
   }
 }
 
+async function logBillingActivity(params: {
+  userId?: string | null;
+  organizationId?: string | null;
+  action: string;
+  documentId?: string | null;
+  documentTitle?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  if (!supabaseAdmin) return;
+
+  let userId = params.userId ?? null;
+  const organizationId = params.organizationId ?? null;
+
+  // 組織課金の場合、userId が未指定でも owner_id を辿って監査ログに紐づける
+  if (!userId && organizationId) {
+    const { data } = await supabaseAdmin
+      .from("organizations")
+      .select("owner_id")
+      .eq("id", organizationId)
+      .maybeSingle();
+    userId = (data as { owner_id?: string | null } | null)?.owner_id ?? null;
+  }
+
+  if (!userId) return;
+
+  try {
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: userId,
+      organization_id: organizationId,
+      document_id: params.documentId ?? null,
+      document_title: params.documentTitle ?? null,
+      action: params.action,
+      metadata: params.metadata ?? null,
+    });
+  } catch {
+    // 監査ログはベストエフォート（Webhookの本処理を止めない）
+  }
+}
+
 export async function POST(req: NextRequest) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -207,6 +246,20 @@ export async function POST(req: NextRequest) {
           throw new Error("Failed to update user subscription info");
         }
       }
+
+      await logBillingActivity({
+        userId: userId ?? null,
+        organizationId: orgId ?? null,
+        action: "billing_subscription_created",
+        metadata: {
+          stripeEventId: event.id,
+          plan,
+          status: subscriptionStatus,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          type: orgId ? "organization" : "personal",
+        },
+      });
     }
 
     // サブスクリプション更新時（プラン変更、更新など）
@@ -308,6 +361,20 @@ export async function POST(req: NextRequest) {
           throw new Error("Failed to update user subscription");
         }
       }
+
+      await logBillingActivity({
+        userId: userIdFromMeta ?? null,
+        organizationId: orgIdFromMeta ?? orgId ?? null,
+        action: "billing_subscription_updated",
+        metadata: {
+          stripeEventId: event.id,
+          plan,
+          status: subscriptionStatus,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscription.id,
+          priceId,
+        },
+      });
     }
 
     // サブスクリプションキャンセル時
@@ -382,6 +449,17 @@ export async function POST(req: NextRequest) {
           throw new Error("Failed to downgrade user");
         }
       }
+
+      await logBillingActivity({
+        userId: userIdFromMeta ?? null,
+        organizationId: orgIdFromMeta ?? orgId ?? null,
+        action: "billing_subscription_canceled",
+        metadata: {
+          stripeEventId: event.id,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscription.id,
+        },
+      });
     }
 
     // 請求書支払い成功 → past_due 等から active への復帰を同期
@@ -398,6 +476,19 @@ export async function POST(req: NextRequest) {
         .from("user_settings")
         .update({ subscription_status: "active" })
         .eq("stripe_customer_id", customerId);
+
+      await logBillingActivity({
+        userId: null,
+        organizationId: null,
+        action: "billing_payment_succeeded",
+        metadata: {
+          stripeEventId: event.id,
+          stripeCustomerId: customerId,
+          invoiceId: invoice.id,
+          amountPaid: invoice.amount_paid,
+          currency: invoice.currency,
+        },
+      });
     }
 
     // 請求書支払い失敗 → past_due を同期（Stripe側のリトライで復帰する可能性あり）
@@ -418,6 +509,19 @@ export async function POST(req: NextRequest) {
         .from("user_settings")
         .update({ subscription_status: "past_due" })
         .eq("stripe_customer_id", customerId);
+
+      await logBillingActivity({
+        userId: null,
+        organizationId: null,
+        action: "billing_payment_failed",
+        metadata: {
+          stripeEventId: event.id,
+          stripeCustomerId: customerId,
+          invoiceId: invoice.id,
+          amountDue: invoice.amount_due,
+          currency: invoice.currency,
+        },
+      });
     }
 
     // サブスクリプション試用期間終了時（通知用途：ここではログのみ）

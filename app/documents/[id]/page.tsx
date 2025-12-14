@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 import { logActivity } from "@/lib/activityLog";
 import { generateSummaryAndTags } from "@/lib/ai";
+import { getEffectivePlan } from "@/lib/subscription";
+import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { Logo } from "@/components/Logo";
 import { RegenerateSummaryButton } from "@/components/RegenerateSummaryButton";
 
@@ -63,7 +65,17 @@ async function deleteDocument(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
 
-  const { error } = await supabase.from("documents").delete().eq("id", id);
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
+  const { error } = await supabase
+    .from("documents")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (error) {
     console.error(error);
@@ -86,10 +98,17 @@ async function toggleArchived(formData: FormData) {
   const next = String(formData.get("next") ?? "") === "true";
   if (!id) return;
 
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
   const { error } = await supabase
     .from("documents")
     .update({ is_archived: next })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (error) {
     console.error("toggleArchived error:", error);
@@ -111,6 +130,27 @@ async function enableShare(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
 
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
+  // ドキュメントの組織スコープを取得して、共有リンク可否をチェック
+  const { data: meta } = await supabase
+    .from("documents")
+    .select("organization_id")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const organizationId = (meta as { organization_id?: string | null } | null)
+    ?.organization_id ?? null;
+  const { limits } = await getEffectivePlan(userId, organizationId);
+  if (!limits.shareLinks) {
+    throw new Error("共有リンク機能は現在のプランでは利用できません。");
+  }
+
   const token = randomUUID();
 
   const { error } = await supabase
@@ -119,7 +159,8 @@ async function enableShare(formData: FormData) {
       share_token: token,
       share_expires_at: null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (error) {
     console.error(error);
@@ -141,13 +182,20 @@ async function disableShare(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
 
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
   const { error } = await supabase
     .from("documents")
     .update({
       share_token: null,
       share_expires_at: null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (error) {
     console.error(error);
@@ -171,6 +219,23 @@ async function addComment(formData: FormData) {
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
+  const { data: docMeta } = await supabase
+    .from("documents")
+    .select("organization_id")
+    .eq("id", documentId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const organizationId = (docMeta as { organization_id?: string | null } | null)
+    ?.organization_id ?? null;
+  const { limits } = await getEffectivePlan(userId, organizationId);
+  if (!limits.comments) {
+    throw new Error("コメント機能は現在のプランでは利用できません。");
+  }
 
   const { error } = await supabase.from("document_comments").insert({
     document_id: documentId,
@@ -197,10 +262,17 @@ async function regenerateSummary(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
 
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
+
   const { data, error } = await supabase
     .from("documents")
-    .select("raw_content,title")
+    .select("raw_content,title,organization_id,user_id")
     .eq("id", id)
+    .eq("user_id", userId)
     .single();
 
   if (error || !data || !data.raw_content) {
@@ -208,12 +280,18 @@ async function regenerateSummary(formData: FormData) {
     return;
   }
 
+  const organizationId =
+    (data as { organization_id?: string | null } | null)?.organization_id ?? null;
+  // 1回分のAI呼び出しとして消費（要約再生成）
+  await ensureAndConsumeAICalls(userId, organizationId, 1, "ja");
+
   const { summary, tags } = await generateSummaryAndTags(data.raw_content);
 
   const { error: updateError } = await supabase
     .from("documents")
     .update({ summary, tags })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (updateError) {
     console.error("regenerateSummary update error:", updateError);

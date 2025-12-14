@@ -249,7 +249,7 @@ export async function getOrganizationSubscription(
   const { data, error } = await supabase
     .from("organizations")
     .select(
-      "plan, seat_limit, document_limit, stripe_customer_id, stripe_subscription_id, billing_email",
+      "plan, seat_limit, document_limit, stripe_customer_id, stripe_subscription_id, billing_email, subscription_status, current_period_end",
     )
     .eq("id", organizationId)
     .maybeSingle();
@@ -277,8 +277,10 @@ export async function getOrganizationSubscription(
     stripeSubscriptionId:
       (data.stripe_subscription_id as string | null) || null,
     billingEmail: (data.billing_email as string | null) || null,
-    subscriptionStatus: null, // 組織プランは将来的に追加
-    currentPeriodEnd: null,
+    subscriptionStatus:
+      (data.subscription_status as OrganizationSubscription["subscriptionStatus"]) ||
+      null,
+    currentPeriodEnd: (data.current_period_end as string | null) || null,
   };
 }
 

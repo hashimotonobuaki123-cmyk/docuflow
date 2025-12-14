@@ -174,7 +174,23 @@ create index if not exists documents_embedding_idx
 
 ---
 
-### 9. RLS ポリシー（概要）
+### 9. `ai_usage_monthly` テーブル
+
+**用途**: 月間AI呼び出し回数の上限を強制するための月次カウント（個人/組織スコープ）。
+
+| カラム名           | 型          | 必須 | 説明 |
+| ------------------ | ----------- | ---- | ---- |
+| `month_start`      | date (PK*)  | ✔︎    | 月初日（YYYY-MM-01）。 |
+| `user_id`          | uuid (PK*)  | ✖︎    | 個人スコープの場合に使用（組織スコープ時は null）。 |
+| `organization_id`  | uuid (PK*)  | ✖︎    | 組織スコープの場合に使用（個人スコープ時は null）。 |
+| `calls`            | integer     | ✔︎    | 当月のAI呼び出し回数。 |
+| `updated_at`       | timestamptz | ✔︎    | 更新日時。 |
+
+(*) 主キーは `(month_start, user_id, organization_id)` の複合キー。
+
+---
+
+### 10. RLS ポリシー（概要）
 
 RLS を本番で有効化する場合、以下の方針で運用する:
 
@@ -190,18 +206,18 @@ RLS を本番で有効化する場合、以下の方針で運用する:
 
 ---
 
-### 10. ベクトル検索（pgvector）
+### 11. ベクトル検索（pgvector）
 
 **用途**: ドキュメントの意味的な類似検索を実現する。
 
-#### 10.1. pgvector 拡張の有効化
+#### 11.1. pgvector 拡張の有効化
 
 ```sql
 -- Supabase で pgvector を有効化
 create extension if not exists vector with schema public;
 ```
 
-#### 10.2. 類似検索用 RPC 関数
+#### 11.2. 類似検索用 RPC 関数
 
 ```sql
 create or replace function match_documents(
@@ -241,7 +257,7 @@ end;
 $$;
 ```
 
-#### 10.3. 使用例
+#### 11.3. 使用例
 
 ```sql
 -- 類似ドキュメントを検索

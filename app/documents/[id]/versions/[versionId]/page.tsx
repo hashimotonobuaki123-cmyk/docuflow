@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
+import { getEffectivePlan } from "@/lib/subscription";
 import { Logo } from "@/components/Logo";
 
 // JST 表示用フォーマット（詳細画面と同じロジック）
@@ -91,10 +94,17 @@ export default async function VersionComparePage({ params, searchParams }: PageP
   const { id, versionId } = params;
   void searchParams;
 
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    redirect(`/auth/login?redirectTo=${encodeURIComponent(`/documents/${id}`)}`);
+  }
+
   const { data: docData, error: docError } = await supabase
     .from("documents")
     .select("*")
     .eq("id", id)
+    .eq("user_id", userId)
     .single();
 
   const { data: versionData, error: versionError } = await supabase
@@ -102,6 +112,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
     .select("*")
     .eq("id", versionId)
     .eq("document_id", id)
+    .eq("user_id", userId)
     .single();
 
   if (docError || !docData || versionError || !versionData) {
@@ -117,6 +128,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
     summary: string | null;
     tags: string[] | null;
     created_at: string;
+    organization_id?: string | null;
   };
 
   const version = versionData as {
@@ -135,6 +147,12 @@ export default async function VersionComparePage({ params, searchParams }: PageP
     formatJstDateTime(version.created_at) ?? version.created_at;
 
   const diff = diffLines(version.raw_content ?? "", doc.raw_content ?? "");
+
+  // バージョン履歴はプラン機能（Freeでは閲覧不可）
+  const { limits } = await getEffectivePlan(userId, doc.organization_id ?? null);
+  if (!limits.versionHistory) {
+    redirect(`/documents/${doc.id}`);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

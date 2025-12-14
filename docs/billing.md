@@ -59,6 +59,7 @@ DocuFlow を世界展開する SaaS として運用するための、
 - **ドキュメント作成時**: `canCreateDocument()` で制限チェック
 - **メンバー追加時**: `canAddMember()` で制限チェック
 - **有効プランの決定**: 組織が指定されている場合は組織プラン、それ以外は個人プラン
+- **AI呼び出し回数（商用）**: `ai_usage_monthly` で月次カウントし、`consume_ai_usage`（DB関数）で原子的に消費
 
 ---
 
@@ -144,6 +145,7 @@ Stripe Webhook → /api/stripe/webhook
 - Stripe Webhook は `STRIPE_WEBHOOK_SECRET` で署名検証
 - Webhook から直接ユーザーを特定するのではなく、`metadata` に `user_id` または `organization_id` を持たせて紐付け
 - Webhook は冪等である必要があるため、`stripe_webhook_events` テーブルで `event.id` を一意保存して重複処理を防止
+- Webhook の重要イベントは `activity_logs` にも記録し、監査可能にする（プラン変更/支払い失敗など）
 - 個人プランと組織プランは独立して管理
 - 月額固定プランのみ対応（従量課金は将来の拡張で対応）
 

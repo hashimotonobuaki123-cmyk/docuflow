@@ -23,6 +23,9 @@ import {
   getActiveOrganizationId,
   setActiveOrganization,
 } from "@/lib/organizations";
+import { canCreateDocument } from "@/lib/subscription";
+import { canUseStorage } from "@/lib/subscriptionUsage";
+import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AppOnboardingTour } from "@/components/AppOnboardingTour";
 import { EmptyState } from "@/components/EmptyState";
@@ -179,10 +182,19 @@ async function togglePinned(formData: FormData) {
 
 async function deleteDocumentFromList(formData: FormData) {
   "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
-  const { error } = await supabase.from("documents").delete().eq("id", id);
+  const { error } = await supabase
+    .from("documents")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) throw new Error("Failed to delete document.");
   await logActivity("delete_document", { documentId: id, documentTitle: title });
   revalidatePath("/app");
@@ -190,11 +202,20 @@ async function deleteDocumentFromList(formData: FormData) {
 
 async function toggleArchivedFromList(formData: FormData) {
   "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   const next = String(formData.get("next") ?? "") === "true";
   if (!id) return;
-  const { error } = await supabase.from("documents").update({ is_archived: next }).eq("id", id);
+  const { error } = await supabase
+    .from("documents")
+    .update({ is_archived: next })
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) throw new Error("Failed to toggle archived.");
   await logActivity(next ? "archive_document" : "restore_document", { documentId: id, documentTitle: title });
   revalidatePath("/app");
@@ -202,12 +223,25 @@ async function toggleArchivedFromList(formData: FormData) {
 
 async function deleteDocumentsBulk(formData: FormData) {
   "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error("ログインしてください。");
+  }
   const selectedIds = formData.getAll("ids").map((v) => String(v).trim()).filter((v) => v.length > 0);
   const allIds = formData.getAll("allIds").map((v) => String(v).trim()).filter((v) => v.length > 0);
   const ids = (selectedIds.length > 0 ? selectedIds : allIds).filter((v, idx, arr) => v.length > 0 && arr.indexOf(v) === idx);
   if (ids.length === 0) return;
-  const { data: docs } = await supabase.from("documents").select("id, title").in("id", ids);
-  const { error } = await supabase.from("documents").delete().in("id", ids);
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("id, title")
+    .eq("user_id", userId)
+    .in("id", ids);
+  const { error } = await supabase
+    .from("documents")
+    .delete()
+    .eq("user_id", userId)
+    .in("id", ids);
   if (error) throw new Error("Failed to delete documents.");
   if (docs && Array.isArray(docs)) {
     for (const doc of docs as { id: string; title: string | null }[]) {
@@ -222,6 +256,7 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   const activeOrgId = userId ? await getActiveOrganizationId(userId) : null;
+  if (!userId) return;
   const filesFromForm = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   const fallbackFile = formData.get("file");
   if (filesFromForm.length === 0 && fallbackFile instanceof File && fallbackFile.size > 0) {
@@ -231,6 +266,15 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
 
   for (const file of filesFromForm) {
     if (file.size > MAX_FILE_SIZE_BYTES) continue;
+
+    // 1件ずつ上限チェック（抜け道防止）
+    const docLimit = await canCreateDocument(userId, activeOrgId, "ja");
+    if (!docLimit.allowed) break;
+
+    const fileSizeMB = file.size / (1024 * 1024);
+    const storageLimit = await canUseStorage(userId, activeOrgId, fileSizeMB, "ja");
+    if (!storageLimit.allowed) break;
+
     let content: string;
     try {
       content = await extractTextFromFile(file);
@@ -242,6 +286,10 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
     let title = "", category = "", summary = "";
     let tags: string[] = [];
     try {
+      if (process.env.OPENAI_API_KEY) {
+        // title + category + summary + embedding
+        await ensureAndConsumeAICalls(userId, activeOrgId, 4, "ja");
+      }
       const [generatedTitle, generatedCategory, generated] = await Promise.all([
         generateTitleFromContent(content),
         generateCategoryFromContent(content),

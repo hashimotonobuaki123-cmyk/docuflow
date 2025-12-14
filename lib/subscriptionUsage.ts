@@ -4,6 +4,7 @@
 
 import { supabase } from "./supabaseClient";
 import { getEffectivePlan, type PlanLimits } from "./subscription";
+import { getAICallsThisMonth } from "./aiUsage";
 
 /**
  * ストレージ使用量を取得（MB単位）
@@ -83,10 +84,9 @@ export async function getAICallUsage(
   userId: string | null,
   organizationId: string | null,
 ): Promise<{ calls: number; limit: number | null }> {
-  // TODO: 実際の実装では、ai_usage_logs テーブルなどで月次カウントを管理
-  // 現時点では簡易的に0を返す
   const { limits } = await getEffectivePlan(userId, organizationId);
-  return { calls: 0, limit: limits.monthlyAICalls };
+  const calls = await getAICallsThisMonth(userId, organizationId);
+  return { calls, limit: limits.monthlyAICalls };
 }
 
 /**

@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getEffectivePlan } from "@/lib/subscription";
 
 export type ApiAuthContext = {
   userId: string;
@@ -55,6 +56,20 @@ export async function authenticateApiKey(
   }
 
   if (!data || data.revoked_at) {
+    return null;
+  }
+
+  // APIアクセスは Team/Enterprise に限定（商用SaaS要件）
+  try {
+    const { limits } = await getEffectivePlan(
+      data.user_id,
+      data.organization_id ?? null,
+    );
+    if (!limits.apiAccess) {
+      return null;
+    }
+  } catch (e) {
+    console.error("[apiAuth] plan check failed:", e);
     return null;
   }
 

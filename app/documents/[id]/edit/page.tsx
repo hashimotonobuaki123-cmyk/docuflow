@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { logActivity } from "@/lib/activityLog";
+import { getEffectivePlan } from "@/lib/subscription";
+import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 
 type PageProps = {
   params: {
@@ -25,21 +27,26 @@ async function updateDocument(formData: FormData) {
     return;
   }
 
+  const cookieStore = await cookies();
+  const cookieUserId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!cookieUserId) {
+    throw new Error("ログインしてください。");
+  }
+
   // 変更前の内容を document_versions に保存してから本体を更新する
   try {
-    const cookieStore = await cookies();
-    const cookieUserId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
-
     const { data: current, error: currentError } = await supabase
       .from("documents")
-      .select("id, user_id, title, category, raw_content, summary, tags")
+      .select("id, user_id, organization_id, title, category, raw_content, summary, tags")
       .eq("id", id)
+      .eq("user_id", cookieUserId)
       .single();
 
     if (!currentError && current) {
       const currentDoc = current as {
         id: string;
         user_id: string | null;
+        organization_id: string | null;
         title: string;
         category: string | null;
         raw_content: string | null;
@@ -47,22 +54,41 @@ async function updateDocument(formData: FormData) {
         tags: string[] | null;
       };
 
-      const versionUserId = cookieUserId ?? currentDoc.user_id;
+      const { limits } = await getEffectivePlan(
+        cookieUserId,
+        currentDoc.organization_id ?? null,
+      );
 
-      await supabase.from("document_versions").insert({
-        document_id: currentDoc.id,
-        user_id: versionUserId,
-        title: currentDoc.title,
-        category: currentDoc.category,
-        raw_content: currentDoc.raw_content,
-        summary: currentDoc.summary,
-        tags: currentDoc.tags,
-      });
+      // バージョン履歴はプラン機能（Freeでは保存しない）
+      if (limits.versionHistory) {
+        const versionUserId = cookieUserId ?? currentDoc.user_id;
+        await supabase.from("document_versions").insert({
+          document_id: currentDoc.id,
+          user_id: versionUserId,
+          title: currentDoc.title,
+          category: currentDoc.category,
+          raw_content: currentDoc.raw_content,
+          summary: currentDoc.summary,
+          tags: currentDoc.tags,
+        });
+      }
     }
   } catch (e) {
     // バージョン保存に失敗しても本体更新は続行する
     console.error("Failed to insert document_versions:", e);
   }
+
+  // 編集時の要約再生成はAI呼び出しとして消費（ドキュメントの組織スコープに紐づける）
+  const { data: scopeMeta } = await supabase
+    .from("documents")
+    .select("organization_id")
+    .eq("id", id)
+    .eq("user_id", cookieUserId)
+    .maybeSingle();
+  const orgId =
+    (scopeMeta as { organization_id?: string | null } | null)?.organization_id ??
+    null;
+  await ensureAndConsumeAICalls(cookieUserId, orgId, 1, "ja");
 
   const { summary, tags } = await generateSummaryAndTags(rawContent);
 
@@ -75,7 +101,8 @@ async function updateDocument(formData: FormData) {
       summary,
       tags,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", cookieUserId);
 
   if (error) {
     console.error(error);

@@ -12,6 +12,7 @@ import { updateDocumentEmbedding } from "@/lib/similarSearch";
 import { getActiveOrganizationId } from "@/lib/organizations";
 import { canCreateDocument } from "@/lib/subscription";
 import { canUseStorage } from "@/lib/subscriptionUsage";
+import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { Logo } from "@/components/Logo";
 import { NewSubmitButtons } from "@/components/NewSubmitButtons";
 import { NewFileDropZone } from "@/components/NewFileDropZone";
@@ -177,6 +178,16 @@ async function createDocument(formData: FormData) {
   let tags: string[] = [];
 
   try {
+    // OpenAI が有効な場合のみ、AI予算（回数）を事前に消費して上限を強制する
+    if (process.env.OPENAI_API_KEY) {
+      const aiCallsNeeded =
+        (title ? 0 : 1) + // title
+        (category ? 0 : 1) + // category
+        1 + // summary & tags
+        1; // embedding (background)
+      await ensureAndConsumeAICalls(userId, activeOrgId, aiCallsNeeded, locale);
+    }
+
     const titlePromise = title
       ? Promise.resolve(title)
       : generateTitleFromContent(content);
