@@ -117,6 +117,8 @@
 | `stripe_customer_id`     | text       | ✖︎    | Stripe 上の Customer ID（組織用）。                                                   |
 | `stripe_subscription_id` | text       | ✖︎    | Stripe 上の Subscription ID（組織用）。                                                |
 | `billing_email`          | text       | ✖︎    | 請求先メールアドレス（Stripe Checkout で入力されたもの）。                              |
+| `subscription_status`    | text       | ✖︎    | サブスクリプション状態（`active`, `canceled`, `past_due`, `trialing`）。              |
+| `current_period_end`     | timestamptz| ✖︎    | 現在の請求期間の終了日時。                                                             |
 | `created_at`             | timestamptz| ✔︎    | 作成日時。デフォルト `now()`。                                                         |
 | `updated_at`             | timestamptz| ✔︎    | 更新日時。デフォルト `now()`。                                                         |
 
@@ -155,7 +157,24 @@ create index if not exists documents_embedding_idx
 
 ---
 
-### 8. RLS ポリシー（概要）
+### 8. `stripe_webhook_events` テーブル
+
+**用途**: Stripe Webhook の冪等性（重複イベント対策）と観測（失敗時の原因追跡）に利用する。
+
+| カラム名        | 型          | 必須 | 説明 |
+| --------------- | ----------- | ---- | ---- |
+| `id`            | text (PK)   | ✔︎    | Stripe Event ID（`evt_...`）。重複処理防止のキー。 |
+| `type`          | text        | ✔︎    | イベントタイプ（例: `checkout.session.completed`）。 |
+| `livemode`      | boolean     | ✔︎    | Stripe の livemode フラグ。 |
+| `received_at`   | timestamptz | ✔︎    | 受信日時。 |
+| `processed_at`  | timestamptz | ✖︎    | 処理完了日時。 |
+| `status`        | text        | ✔︎    | `processing` / `processed` / `failed` / `ignored`。 |
+| `error_message` | text        | ✖︎    | 失敗時のエラーメッセージ（短縮）。 |
+| `payload`       | jsonb       | ✖︎    | 最小限のペイロード（デバッグ用途）。 |
+
+---
+
+### 9. RLS ポリシー（概要）
 
 RLS を本番で有効化する場合、以下の方針で運用する:
 
@@ -171,18 +190,18 @@ RLS を本番で有効化する場合、以下の方針で運用する:
 
 ---
 
-### 9. ベクトル検索（pgvector）
+### 10. ベクトル検索（pgvector）
 
 **用途**: ドキュメントの意味的な類似検索を実現する。
 
-#### 7.1. pgvector 拡張の有効化
+#### 10.1. pgvector 拡張の有効化
 
 ```sql
 -- Supabase で pgvector を有効化
 create extension if not exists vector with schema public;
 ```
 
-#### 7.2. 類似検索用 RPC 関数
+#### 10.2. 類似検索用 RPC 関数
 
 ```sql
 create or replace function match_documents(
@@ -222,7 +241,7 @@ end;
 $$;
 ```
 
-#### 7.3. 使用例
+#### 10.3. 使用例
 
 ```sql
 -- 類似ドキュメントを検索

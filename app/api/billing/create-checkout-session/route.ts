@@ -107,12 +107,12 @@ export async function POST(req: NextRequest) {
       allow_promotion_codes: true,
     };
 
-    // 試用期間の設定
-    if (trialDays && trialDays > 0) {
-      sessionConfig.subscription_data = {
-        trial_period_days: trialDays,
-      };
-    }
+    // subscription.updated / deleted の同期で確実にターゲット（user/org）を特定できるよう、
+    // subscription_data.metadata にも同じメタ情報を入れておく（商用運用の基本）
+    sessionConfig.subscription_data = {
+      metadata,
+      ...(trialDays && trialDays > 0 ? { trial_period_days: trialDays } : {}),
+    };
 
     // クーポンコードの設定
     if (couponCode) {

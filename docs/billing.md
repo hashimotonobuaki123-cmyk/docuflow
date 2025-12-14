@@ -51,6 +51,8 @@ DocuFlow を世界展開する SaaS として運用するための、
 - `stripe_customer_id text` - Stripe の Customer ID
 - `stripe_subscription_id text` - Stripe の Subscription ID
 - `billing_email text` - 請求先メールアドレス
+- `subscription_status text check (subscription_status in ('active', 'canceled', 'past_due', 'trialing') or subscription_status is null)`
+- `current_period_end timestamptz` - 現在の請求期間の終了日時
 
 ### 1.4 プラン制限の適用
 
@@ -96,7 +98,8 @@ POST /api/billing/create-checkout-session
     │ { plan: "pro", type: "personal" | "organization" }
     │
     ├─ Stripe Checkout Session 作成
-    │   └─ metadata に plan, type, user_id/organization_id を設定
+    │   ├─ metadata に plan, type, user_id/organization_id を設定
+    │   └─ subscription_data.metadata にも同じ情報を設定（Webhook側の確実な同定）
     └─ URL を返す
     │
     ▼
@@ -140,6 +143,7 @@ Stripe Webhook → /api/stripe/webhook
 
 - Stripe Webhook は `STRIPE_WEBHOOK_SECRET` で署名検証
 - Webhook から直接ユーザーを特定するのではなく、`metadata` に `user_id` または `organization_id` を持たせて紐付け
+- Webhook は冪等である必要があるため、`stripe_webhook_events` テーブルで `event.id` を一意保存して重複処理を防止
 - 個人プランと組織プランは独立して管理
 - 月額固定プランのみ対応（従量課金は将来の拡張で対応）
 

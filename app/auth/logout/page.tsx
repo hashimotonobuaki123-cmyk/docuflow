@@ -15,7 +15,9 @@ export default function LogoutPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <p className="text-sm text-slate-600">DocuFlow からログアウトしています...</p>
+      <p className="text-sm text-slate-600">
+        DocuFlow からログアウトしています...
+      </p>
     </div>
   );
 }

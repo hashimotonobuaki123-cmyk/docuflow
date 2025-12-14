@@ -4,6 +4,30 @@ import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { PLAN_LIMITS, type SubscriptionPlan } from "@/lib/subscription";
 
+function truncate(text: string, max = 1000) {
+  if (text.length <= max) return text;
+  return text.slice(0, max) + "...";
+}
+
+async function markWebhookEvent(
+  eventId: string,
+  patch: {
+    status?: "processing" | "processed" | "failed" | "ignored";
+    processed_at?: string | null;
+    error_message?: string | null;
+  },
+) {
+  if (!supabaseAdmin) return;
+  try {
+    await supabaseAdmin
+      .from("stripe_webhook_events")
+      .update(patch)
+      .eq("id", eventId);
+  } catch {
+    // Webhook の本処理を邪魔しない（観測はベストエフォート）
+  }
+}
+
 export async function POST(req: NextRequest) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -54,304 +78,374 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Checkout完了時（新規サブスクリプション）
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const orgId = session.metadata?.organization_id;
-    const userId = session.metadata?.user_id;
-    const plan = (session.metadata?.plan as SubscriptionPlan) || "pro";
+  // ---------------------------------------------------------------------------
+  // 冪等性（重複イベント対策）
+  //  - Stripe は同一 event.id を複数回配送する可能性がある
+  //  - 最初の1回だけ処理し、それ以外は即 200 を返す
+  // ---------------------------------------------------------------------------
+  try {
+    const minimalPayload = {
+      id: event.id,
+      type: event.type,
+      created: event.created,
+    };
 
-    const customerId =
-      typeof session.customer === "string" ? session.customer : null;
-    const subscriptionId =
-      typeof session.subscription === "string" ? session.subscription : null;
-    const billingEmail = session.customer_details?.email ?? null;
+    const { error: insertErr } = await supabaseAdmin
+      .from("stripe_webhook_events")
+      .insert({
+        id: event.id,
+        type: event.type,
+        livemode: event.livemode,
+        status: "processing",
+        payload: minimalPayload,
+      });
 
-    // サブスクリプション情報を取得
-    let subscription: Stripe.Subscription | null = null;
-    if (subscriptionId) {
-      try {
-        subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      } catch (err) {
-        console.error(
-          "[stripe/webhook] Failed to retrieve subscription:",
-          err,
-        );
+    if (insertErr) {
+      // Duplicate key: already processed/processing → 冪等に 200
+      if ((insertErr as any).code === "23505") {
+        return NextResponse.json({ received: true }, { status: 200 });
       }
+      console.error("[stripe/webhook] Failed to record webhook event:", insertErr);
+      return NextResponse.json(
+        { error: "Failed to record webhook event" },
+        { status: 500 },
+      );
     }
+  } catch (e) {
+    console.error("[stripe/webhook] Failed to enforce idempotency:", e);
+    return NextResponse.json(
+      { error: "Failed to enforce idempotency" },
+      { status: 500 },
+    );
+  }
 
-    const subscriptionStatus = subscription?.status || "active";
-    const currentPeriodEnd = subscription?.current_period_end
-      ? new Date(subscription.current_period_end * 1000).toISOString()
-      : null;
+  try {
+    // Checkout完了時（新規サブスクリプション）
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const orgId = session.metadata?.organization_id;
+      const userId = session.metadata?.user_id;
+      const plan = (session.metadata?.plan as SubscriptionPlan) || "pro";
 
-    const limits = PLAN_LIMITS[plan];
+      const customerId =
+        typeof session.customer === "string" ? session.customer : null;
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : null;
+      const billingEmail = session.customer_details?.email ?? null;
 
-    // 組織プランの場合
-    if (orgId) {
-      const { error } = await supabaseAdmin
-        .from("organizations")
-        .update({
-          plan,
-          seat_limit: limits.seatLimit,
-          document_limit: limits.documentLimit,
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscriptionId,
-          billing_email: billingEmail,
-        })
-        .eq("id", orgId);
-
-      if (error) {
-        console.error(
-          "[stripe/webhook] Failed to update organization billing info:",
-          error,
-        );
-        return NextResponse.json(
-          { error: "Failed to update organization billing info" },
-          { status: 500 },
-        );
+      // サブスクリプション情報を取得
+      let subscription: Stripe.Subscription | null = null;
+      if (subscriptionId) {
+        try {
+          subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        } catch (err) {
+          console.error(
+            "[stripe/webhook] Failed to retrieve subscription:",
+            err,
+          );
+        }
       }
-    }
 
-    // 個人ユーザープランの場合
-    if (userId) {
-      const { error } = await supabaseAdmin
-        .from("user_settings")
-        .upsert(
-          {
-            user_id: userId,
-            subscription_plan: plan,
+      const subscriptionStatus = (subscription?.status || "active") as
+        | "active"
+        | "canceled"
+        | "past_due"
+        | "trialing";
+      const currentPeriodEnd = subscription?.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null;
+
+      const limits = PLAN_LIMITS[plan];
+
+      // 組織プランの場合
+      if (orgId) {
+        const { error } = await supabaseAdmin
+          .from("organizations")
+          .update({
+            plan,
+            seat_limit: limits.seatLimit,
+            document_limit: limits.documentLimit,
             stripe_customer_id: customerId,
             stripe_subscription_id: subscriptionId,
             billing_email: billingEmail,
-            subscription_status: subscriptionStatus as
-              | "active"
-              | "canceled"
-              | "past_due"
-              | "trialing",
+            subscription_status: subscriptionStatus,
             current_period_end: currentPeriodEnd,
-          },
-          { onConflict: "user_id" },
-        );
+          })
+          .eq("id", orgId);
 
-      if (error) {
-        console.error(
-          "[stripe/webhook] Failed to update user subscription info:",
-          error,
-        );
-        return NextResponse.json(
-          { error: "Failed to update user subscription info" },
-          { status: 500 },
-        );
+        if (error) {
+          console.error(
+            "[stripe/webhook] Failed to update organization billing info:",
+            error,
+          );
+          throw new Error("Failed to update organization billing info");
+        }
       }
-    }
-  }
 
-  // サブスクリプション更新時（プラン変更、更新など）
-  if (event.type === "customer.subscription.updated") {
-    const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
+      // 個人ユーザープランの場合
+      if (userId) {
+        const { error } = await supabaseAdmin
+          .from("user_settings")
+          .upsert(
+            {
+              user_id: userId,
+              subscription_plan: plan,
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscriptionId,
+              billing_email: billingEmail,
+              subscription_status: subscriptionStatus,
+              current_period_end: currentPeriodEnd,
+            },
+            { onConflict: "user_id" },
+          );
 
-    // サブスクリプションのプラン情報を取得
-    const priceId = subscription.items.data[0]?.price.id;
-    // プランはmetadataから取得、なければpriceIdから推測
-    let plan = (subscription.metadata?.plan as SubscriptionPlan) || "pro";
-    
-    // priceIdからプランを推測（環境変数と照合）
-    if (!subscription.metadata?.plan && priceId) {
-      if (priceId === process.env.STRIPE_PRICE_PRO_MONTH) {
-        plan = "pro";
-      } else if (priceId === process.env.STRIPE_PRICE_TEAM_MONTH) {
-        plan = "team";
-      } else if (priceId === process.env.STRIPE_PRICE_ENTERPRISE_MONTH) {
-        plan = "enterprise";
-      }
-    }
-
-    const limits = PLAN_LIMITS[plan];
-    const subscriptionStatus = subscription.status as
-      | "active"
-      | "canceled"
-      | "past_due"
-      | "trialing";
-    const currentPeriodEnd = new Date(
-      subscription.current_period_end * 1000,
-    ).toISOString();
-
-    // 組織プランを更新
-    const { data: orgs, error: orgError } = await supabaseAdmin
-      .from("organizations")
-      .select("id")
-      .eq("stripe_customer_id", customerId)
-      .limit(1);
-
-    if (orgError) {
-      console.error(
-        "[stripe/webhook] Failed to fetch organization:",
-        orgError,
-      );
-    } else if (orgs && orgs.length > 0) {
-      const orgId = orgs[0].id;
-      const { error: updateError } = await supabaseAdmin
-        .from("organizations")
-        .update({
-          plan,
-          seat_limit: limits.seatLimit,
-          document_limit: limits.documentLimit,
-          stripe_subscription_id: subscription.id,
-          billing_email: subscription.metadata?.billing_email || null,
-        })
-        .eq("id", orgId);
-
-      if (updateError) {
-        console.error(
-          "[stripe/webhook] Failed to update organization:",
-          updateError,
-        );
+        if (error) {
+          console.error(
+            "[stripe/webhook] Failed to update user subscription info:",
+            error,
+          );
+          throw new Error("Failed to update user subscription info");
+        }
       }
     }
 
-    // 個人ユーザープランを更新
-    const { data: users, error: userError } = await supabaseAdmin
-      .from("user_settings")
-      .select("user_id")
-      .eq("stripe_customer_id", customerId)
-      .limit(1);
+    // サブスクリプション更新時（プラン変更、更新など）
+    if (event.type === "customer.subscription.updated") {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = subscription.customer as string;
 
-    if (userError) {
-      console.error(
-        "[stripe/webhook] Failed to fetch user:",
-        userError,
-      );
-    } else if (users && users.length > 0) {
-      const userId = users[0].user_id;
-      const { error: updateError } = await supabaseAdmin
-        .from("user_settings")
-        .update({
-          subscription_plan: plan,
-          stripe_subscription_id: subscription.id,
-          subscription_status: subscriptionStatus,
-          current_period_end: currentPeriodEnd,
-        })
-        .eq("user_id", userId);
+      // サブスクリプションのプラン情報を取得
+      const priceId = subscription.items.data[0]?.price.id;
+      // プランはmetadataから取得、なければpriceIdから推測
+      let plan = (subscription.metadata?.plan as SubscriptionPlan) || "pro";
 
-      if (updateError) {
-        console.error(
-          "[stripe/webhook] Failed to update user subscription:",
-          updateError,
-        );
+      // priceIdからプランを推測（環境変数と照合）
+      if (!subscription.metadata?.plan && priceId) {
+        if (priceId === process.env.STRIPE_PRICE_PRO_MONTH) {
+          plan = "pro";
+        } else if (priceId === process.env.STRIPE_PRICE_TEAM_MONTH) {
+          plan = "team";
+        } else if (priceId === process.env.STRIPE_PRICE_ENTERPRISE_MONTH) {
+          plan = "enterprise";
+        }
+      }
+
+      const limits = PLAN_LIMITS[plan];
+      const subscriptionStatus = subscription.status as
+        | "active"
+        | "canceled"
+        | "past_due"
+        | "trialing";
+      const currentPeriodEnd = new Date(
+        subscription.current_period_end * 1000,
+      ).toISOString();
+
+      const orgIdFromMeta = subscription.metadata?.organization_id;
+      const userIdFromMeta = subscription.metadata?.user_id;
+
+      // 組織プランを更新（metadata優先、なければcustomerIdから探索）
+      const orgId =
+        orgIdFromMeta ||
+        (
+          await supabaseAdmin
+            .from("organizations")
+            .select("id")
+            .eq("stripe_customer_id", customerId)
+            .limit(1)
+        ).data?.[0]?.id;
+
+      if (orgId) {
+        const { error: updateError } = await supabaseAdmin
+          .from("organizations")
+          .update({
+            plan,
+            seat_limit: limits.seatLimit,
+            document_limit: limits.documentLimit,
+            stripe_subscription_id: subscription.id,
+            subscription_status: subscriptionStatus,
+            current_period_end: currentPeriodEnd,
+            billing_email: subscription.metadata?.billing_email || null,
+          })
+          .eq("id", orgId);
+
+        if (updateError) {
+          console.error(
+            "[stripe/webhook] Failed to update organization:",
+            updateError,
+          );
+          // Stripe が再試行できるように 500 へ
+          throw new Error("Failed to update organization subscription");
+        }
+      }
+
+      // 個人ユーザープランを更新（metadata優先、なければcustomerIdから探索）
+      const userId =
+        userIdFromMeta ||
+        (
+          await supabaseAdmin
+            .from("user_settings")
+            .select("user_id")
+            .eq("stripe_customer_id", customerId)
+            .limit(1)
+        ).data?.[0]?.user_id;
+
+      if (userId) {
+        const { error: updateError } = await supabaseAdmin
+          .from("user_settings")
+          .update({
+            subscription_plan: plan,
+            stripe_subscription_id: subscription.id,
+            subscription_status: subscriptionStatus,
+            current_period_end: currentPeriodEnd,
+          })
+          .eq("user_id", userId);
+
+        if (updateError) {
+          console.error(
+            "[stripe/webhook] Failed to update user subscription:",
+            updateError,
+          );
+          throw new Error("Failed to update user subscription");
+        }
       }
     }
-  }
 
-  // サブスクリプションキャンセル時
-  if (event.type === "customer.subscription.deleted") {
-    const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
+    // サブスクリプションキャンセル時
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = subscription.customer as string;
+      const orgIdFromMeta = subscription.metadata?.organization_id;
+      const userIdFromMeta = subscription.metadata?.user_id;
 
-    // 組織プランを無料プランにダウングレード
-    const { data: orgs } = await supabaseAdmin
-      .from("organizations")
-      .select("id")
-      .eq("stripe_customer_id", customerId)
-      .limit(1);
+      // 組織プランを無料プランにダウングレード
+      const orgId =
+        orgIdFromMeta ||
+        (
+          await supabaseAdmin
+            .from("organizations")
+            .select("id")
+            .eq("stripe_customer_id", customerId)
+            .limit(1)
+        ).data?.[0]?.id;
 
-    if (orgs && orgs.length > 0) {
-      const orgId = orgs[0].id;
-      const limits = PLAN_LIMITS.free;
+      if (orgId) {
+        const limits = PLAN_LIMITS.free;
+
+        const { error: downgradeError } = await supabaseAdmin
+          .from("organizations")
+          .update({
+            plan: "free",
+            seat_limit: limits.seatLimit,
+            document_limit: limits.documentLimit,
+            stripe_subscription_id: null,
+            subscription_status: "canceled",
+            current_period_end: null,
+          })
+          .eq("id", orgId);
+
+        if (downgradeError) {
+          console.error(
+            "[stripe/webhook] Failed to downgrade organization:",
+            downgradeError,
+          );
+          throw new Error("Failed to downgrade organization");
+        }
+      }
+
+      // 個人ユーザープランを無料プランにダウングレード
+      const userId =
+        userIdFromMeta ||
+        (
+          await supabaseAdmin
+            .from("user_settings")
+            .select("user_id")
+            .eq("stripe_customer_id", customerId)
+            .limit(1)
+        ).data?.[0]?.user_id;
+
+      if (userId) {
+        const { error: downgradeError } = await supabaseAdmin
+          .from("user_settings")
+          .update({
+            subscription_plan: "free",
+            stripe_subscription_id: null,
+            subscription_status: "canceled",
+            current_period_end: null,
+          })
+          .eq("user_id", userId);
+
+        if (downgradeError) {
+          console.error(
+            "[stripe/webhook] Failed to downgrade user:",
+            downgradeError,
+          );
+          throw new Error("Failed to downgrade user");
+        }
+      }
+    }
+
+    // 請求書支払い成功 → past_due 等から active への復帰を同期
+    if (event.type === "invoice.payment_succeeded") {
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = invoice.customer as string;
 
       await supabaseAdmin
         .from("organizations")
-        .update({
-          plan: "free",
-          seat_limit: limits.seatLimit,
-          document_limit: limits.documentLimit,
-          stripe_subscription_id: null,
-        })
-        .eq("id", orgId);
-    }
-
-    // 個人ユーザープランを無料プランにダウングレード
-    const { data: users } = await supabaseAdmin
-      .from("user_settings")
-      .select("user_id")
-      .eq("stripe_customer_id", customerId)
-      .limit(1);
-
-    if (users && users.length > 0) {
-      const userId = users[0].user_id;
+        .update({ subscription_status: "active" })
+        .eq("stripe_customer_id", customerId);
 
       await supabaseAdmin
         .from("user_settings")
-        .update({
-          subscription_plan: "free",
-          stripe_subscription_id: null,
-          subscription_status: "canceled",
-          current_period_end: null,
-        })
-        .eq("user_id", userId);
+        .update({ subscription_status: "active" })
+        .eq("stripe_customer_id", customerId);
     }
-  }
 
-  // 請求書作成時（支払い成功）
-  if (event.type === "invoice.payment_succeeded") {
-    const invoice = event.data.object as Stripe.Invoice;
-    const customerId = invoice.customer as string;
+    // 請求書支払い失敗 → past_due を同期（Stripe側のリトライで復帰する可能性あり）
+    if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = invoice.customer as string;
 
-    // 組織プランの請求書処理
-    const { data: orgs } = await supabaseAdmin
-      .from("organizations")
-      .select("id")
-      .eq("stripe_customer_id", customerId)
-      .limit(1);
+      console.warn(
+        `[stripe/webhook] Invoice payment failed for customer: ${customerId}`,
+      );
 
-    if (orgs && orgs.length > 0) {
-      // 必要に応じて請求書情報を保存
+      await supabaseAdmin
+        .from("organizations")
+        .update({ subscription_status: "past_due" })
+        .eq("stripe_customer_id", customerId);
+
+      await supabaseAdmin
+        .from("user_settings")
+        .update({ subscription_status: "past_due" })
+        .eq("stripe_customer_id", customerId);
+    }
+
+    // サブスクリプション試用期間終了時（通知用途：ここではログのみ）
+    if (event.type === "customer.subscription.trial_will_end") {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = subscription.customer as string;
       console.log(
-        `[stripe/webhook] Invoice paid for organization: ${orgs[0].id}`,
+        `[stripe/webhook] Trial will end for customer: ${customerId}`,
       );
     }
 
-    // 個人ユーザープランの請求書処理
-    const { data: users } = await supabaseAdmin
-      .from("user_settings")
-      .select("user_id")
-      .eq("stripe_customer_id", customerId)
-      .limit(1);
+    await markWebhookEvent(event.id, {
+      status: "processed",
+      processed_at: new Date().toISOString(),
+      error_message: null,
+    });
 
-    if (users && users.length > 0) {
-      console.log(
-        `[stripe/webhook] Invoice paid for user: ${users[0].user_id}`,
-      );
-    }
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (err) {
+    console.error("[stripe/webhook] Handler failed:", err);
+    await markWebhookEvent(event.id, {
+      status: "failed",
+      processed_at: new Date().toISOString(),
+      error_message: truncate(String(err)),
+    });
+    // 500 を返すことで Stripe が自動リトライできる
+    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
-
-  // 請求書支払い失敗時
-  if (event.type === "invoice.payment_failed") {
-    const invoice = event.data.object as Stripe.Invoice;
-    const customerId = invoice.customer as string;
-
-    console.warn(
-      `[stripe/webhook] Invoice payment failed for customer: ${customerId}`,
-    );
-
-    // 必要に応じてユーザーに通知を送信
-    // ここではログのみ
-  }
-
-  // サブスクリプション試用期間終了時
-  if (event.type === "customer.subscription.trial_will_end") {
-    const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
-
-    console.log(
-      `[stripe/webhook] Trial will end for customer: ${customerId}`,
-    );
-
-    // 必要に応じてユーザーに通知を送信
-  }
-
-  return NextResponse.json({ received: true }, { status: 200 });
 }
 
 
