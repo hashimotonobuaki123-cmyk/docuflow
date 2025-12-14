@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
 
       const { data: org, error: orgError } = await supabase
         .from("organizations")
-        .select("id, name")
+        .select("id, name, stripe_customer_id, stripe_subscription_id, subscription_status")
         .eq("id", activeOrgId)
         .maybeSingle();
 
@@ -130,11 +130,86 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const orgCustomerId = (org as any)?.stripe_customer_id as string | null | undefined;
+      const orgSubscriptionId = (org as any)?.stripe_subscription_id as
+        | string
+        | null
+        | undefined;
+      const orgStatus = (org as any)?.subscription_status as
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | null
+        | undefined;
+
+      // 二重課金の防止：既に有効なサブスクがある場合は Checkout を作らず、ポータルへ誘導
+      if (orgCustomerId && orgSubscriptionId && orgStatus && orgStatus !== "canceled") {
+        const portal = await stripe.billingPortal.sessions.create({
+          customer: orgCustomerId,
+          return_url: `${siteUrl}/settings/billing`,
+        });
+        return NextResponse.json(
+          {
+            url: portal.url,
+            notice:
+              "既に有効なサブスクリプションがあります。プラン変更や管理は請求ポータルから行ってください。",
+          },
+          { status: 200 },
+        );
+      }
+
       metadata.organization_id = org.id;
       metadata.organization_name = (org as { name?: string | null }).name ?? "";
     } else {
       // 個人プランの場合
       metadata.user_id = userId;
+
+      const { data: userSettings, error: userSettingsError } = await supabase
+        .from("user_settings")
+        .select("stripe_customer_id, stripe_subscription_id, subscription_status")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (userSettingsError) {
+        console.error("Failed to fetch user settings for billing:", userSettingsError);
+        return NextResponse.json(
+          { error: "Failed to load billing status" },
+          { status: 500 },
+        );
+      }
+
+      const customerId = (userSettings as any)?.stripe_customer_id as
+        | string
+        | null
+        | undefined;
+      const subscriptionId = (userSettings as any)?.stripe_subscription_id as
+        | string
+        | null
+        | undefined;
+      const status = (userSettings as any)?.subscription_status as
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | null
+        | undefined;
+
+      // 二重課金の防止：既に有効なサブスクがある場合は Checkout を作らず、ポータルへ誘導
+      if (customerId && subscriptionId && status && status !== "canceled") {
+        const portal = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: `${siteUrl}/settings/billing`,
+        });
+        return NextResponse.json(
+          {
+            url: portal.url,
+            notice:
+              "既に有効なサブスクリプションがあります。プラン変更や管理は請求ポータルから行ってください。",
+          },
+          { status: 200 },
+        );
+      }
     }
 
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
