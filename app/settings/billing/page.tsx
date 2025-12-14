@@ -95,8 +95,11 @@ export default async function BillingSettingsPage() {
     enterprise: !!process.env.STRIPE_PRICE_ENTERPRISE_MONTH,
   } as const;
 
+  // Stripe の基本設定（キー/サイトURL）が揃っているか
+  const stripeBaseConfigured = stripeConfig.hasSecretKey && stripeConfig.hasSiteUrl;
+  // いずれかの有料プランが設定されていれば「Stripe設定は一応OK」とみなす
   const stripeConfigured =
-    stripeConfig.hasSecretKey && stripeConfig.hasSiteUrl && stripeConfig.pro;
+    stripeBaseConfigured && (stripeConfig.pro || stripeConfig.team || stripeConfig.enterprise);
 
   let subscriptionSummary:
     | {
@@ -170,8 +173,12 @@ export default async function BillingSettingsPage() {
               {!stripeConfig.hasSiteUrl && (
                 <li>{"NEXT_PUBLIC_SITE_URL が未設定です（https://...）"}</li>
               )}
-              {!stripeConfig.pro && (
-                <li>{"STRIPE_PRICE_PRO_MONTH が未設定です（price_...）"}</li>
+              {stripeBaseConfigured && !stripeConfig.pro && !stripeConfig.team && !stripeConfig.enterprise && (
+                <li>
+                  {
+                    "プラン価格IDが未設定です（例: STRIPE_PRICE_TEAM_MONTH / STRIPE_PRICE_PRO_MONTH）"
+                  }
+                </li>
               )}
               <li className="text-amber-800">
                 {

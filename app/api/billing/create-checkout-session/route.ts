@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
 
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const requiredPriceEnvKey: Record<SubscriptionPlan, string | null> = {
+    free: null,
+    pro: "STRIPE_PRICE_PRO_MONTH",
+    team: "STRIPE_PRICE_TEAM_MONTH",
+    enterprise: "STRIPE_PRICE_ENTERPRISE_MONTH",
+  };
 
   // プランごとの価格IDを環境変数から取得
   const priceIds: Record<SubscriptionPlan, string | undefined> = {
@@ -44,9 +50,24 @@ export async function POST(req: NextRequest) {
 
   const priceId = priceIds[plan];
 
-  if (!stripeSecretKey || !priceId || !siteUrl) {
+  if (!stripeSecretKey) {
     return NextResponse.json(
-      { error: "Stripe is not configured on the server" },
+      { error: "STRIPE_SECRET_KEY が未設定です。" },
+      { status: 500 },
+    );
+  }
+  if (!siteUrl) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_SITE_URL が未設定です。" },
+      { status: 500 },
+    );
+  }
+  if (plan !== "free" && !priceId) {
+    return NextResponse.json(
+      {
+        error: `${requiredPriceEnvKey[plan]} が未設定です（price_...）。`,
+        requiredEnvKey: requiredPriceEnvKey[plan],
+      },
       { status: 500 },
     );
   }

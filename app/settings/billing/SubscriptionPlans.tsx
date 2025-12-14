@@ -83,6 +83,14 @@ export function SubscriptionPlans({
     return false;
   };
 
+  const missingPlanEnvKey = (plan: SubscriptionPlan): string | null => {
+    if (plan === "pro") return stripeConfig.pro ? null : "STRIPE_PRICE_PRO_MONTH";
+    if (plan === "team") return stripeConfig.team ? null : "STRIPE_PRICE_TEAM_MONTH";
+    if (plan === "enterprise")
+      return stripeConfig.enterprise ? null : "STRIPE_PRICE_ENTERPRISE_MONTH";
+    return null;
+  };
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {plans.map((plan) => {
@@ -191,7 +199,11 @@ export function SubscriptionPlans({
                 </button>
                 {!planConfigured && (
                   <p className="text-[11px] text-slate-500">
-                    {"Stripe の環境変数が未設定のためアップグレードできません。"}
+                    {!baseConfigured
+                      ? "Stripe の基本設定（STRIPE_SECRET_KEY / NEXT_PUBLIC_SITE_URL）が未設定です。"
+                      : missingPlanEnvKey(plan)
+                        ? `${missingPlanEnvKey(plan)} が未設定のため、このプランへアップグレードできません。`
+                        : "Stripe の環境変数が未設定のためアップグレードできません。"}
                   </p>
                 )}
               </div>
