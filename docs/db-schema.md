@@ -181,12 +181,12 @@ create index if not exists documents_embedding_idx
 | カラム名           | 型          | 必須 | 説明 |
 | ------------------ | ----------- | ---- | ---- |
 | `month_start`      | date (PK*)  | ✔︎    | 月初日（YYYY-MM-01）。 |
-| `user_id`          | uuid (PK*)  | ✖︎    | 個人スコープの場合に使用（組織スコープ時は null）。 |
-| `organization_id`  | uuid (PK*)  | ✖︎    | 組織スコープの場合に使用（個人スコープ時は null）。 |
+| `scope_type`       | text (PK*)  | ✔︎    | `personal` / `organization`。 |
+| `scope_id`         | uuid (PK*)  | ✔︎    | `scope_type` に対応するID（personal=auth.users.id / organization=organizations.id）。 |
 | `calls`            | integer     | ✔︎    | 当月のAI呼び出し回数。 |
 | `updated_at`       | timestamptz | ✔︎    | 更新日時。 |
 
-(*) 主キーは `(month_start, user_id, organization_id)` の複合キー。
+(*) 主キーは `(month_start, scope_type, scope_id)` の複合キー。
 
 ---
 

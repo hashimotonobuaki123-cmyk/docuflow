@@ -4,13 +4,13 @@ import { getEffectivePlan } from "./subscription";
 type Locale = "ja" | "en";
 
 function scopeForUsage(userId: string | null, organizationId: string | null): {
-  userId: string | null;
-  organizationId: string | null;
+  scopeType: "personal" | "organization";
+  scopeId: string | null;
 } {
   if (organizationId) {
-    return { userId: null, organizationId };
+    return { scopeType: "organization", scopeId: organizationId };
   }
-  return { userId, organizationId: null };
+  return { scopeType: "personal", scopeId: userId };
 }
 
 export async function getAICallsThisMonth(
@@ -20,30 +20,19 @@ export async function getAICallsThisMonth(
   if (!supabaseAdmin) return 0;
 
   const scope = scopeForUsage(userId, organizationId);
+  if (!scope.scopeId) return 0;
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
   const monthStartDate = monthStart.toISOString().slice(0, 10); // YYYY-MM-01
 
-  const query = scope.organizationId
-    ? supabaseAdmin
-        .from("ai_usage_monthly")
-        .select("calls")
-        .eq("month_start", monthStartDate)
-        .eq("organization_id", scope.organizationId)
-        .maybeSingle()
-    : scope.userId
-      ? supabaseAdmin
-          .from("ai_usage_monthly")
-          .select("calls")
-          .eq("month_start", monthStartDate)
-          .eq("user_id", scope.userId)
-          .maybeSingle()
-      : null;
-
-  if (!query) return 0;
-
-  const { data, error } = await query;
+  const { data, error } = await supabaseAdmin
+    .from("ai_usage_monthly")
+    .select("calls")
+    .eq("month_start", monthStartDate)
+    .eq("scope_type", scope.scopeType)
+    .eq("scope_id", scope.scopeId)
+    .maybeSingle();
   if (error) return 0;
   return (data?.calls as number | undefined) ?? 0;
 }
@@ -67,8 +56,8 @@ export async function consumeAICallsWithLimit(
   const scope = scopeForUsage(userId, organizationId);
 
   const { data, error } = await supabaseAdmin.rpc("consume_ai_usage", {
-    p_user_id: scope.userId,
-    p_organization_id: scope.organizationId,
+    p_user_id: scope.scopeType === "personal" ? scope.scopeId : null,
+    p_organization_id: scope.scopeType === "organization" ? scope.scopeId : null,
     p_limit: limit ?? -1,
     p_count: count,
   });
