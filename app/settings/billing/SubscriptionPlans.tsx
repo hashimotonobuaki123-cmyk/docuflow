@@ -240,6 +240,17 @@ export function SubscriptionPlans({
               <div className="rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-medium text-slate-700">
                 {"現在のプラン"}
               </div>
+            ) : plan === "free" ? (
+              <div className="space-y-2">
+                <div className="rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-medium text-slate-700">
+                  {"下位プラン（無料）"}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {
+                    "無料へ戻す（ダウングレード）場合は、請求ポータルでサブスクリプションをキャンセルしてください。"
+                  }
+                </p>
+              </div>
             ) : isEnterprise ? (
               <a
                 href="mailto:sales@docuflow.com"
