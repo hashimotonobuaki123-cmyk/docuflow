@@ -14,6 +14,7 @@ import {
   updateOrganizationMemberRole,
   deleteOrganization,
   leaveOrganization,
+  transferOrganizationOwnership,
 } from "@/lib/organizations";
 import {
   getOrganizationSubscription,
@@ -252,6 +253,41 @@ async function leaveOrganizationAction(formData: FormData) {
   revalidatePath("/settings/organizations");
   redirect(
     `/settings/organizations?orgMsg=${encodeURIComponent("組織を退出しました。")}`,
+  );
+}
+
+async function transferOwnershipAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value;
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  const organizationId = String(formData.get("organizationId") ?? "").trim();
+  const newOwnerUserId = String(formData.get("newOwnerUserId") ?? "").trim();
+  if (!organizationId || !newOwnerUserId) {
+    redirect(`/settings/organizations?org=${encodeURIComponent(organizationId)}`);
+  }
+
+  const res = await transferOrganizationOwnership(
+    organizationId,
+    newOwnerUserId,
+    userId,
+  );
+  if (!res.success) {
+    redirect(
+      `/settings/organizations?org=${encodeURIComponent(
+        organizationId,
+      )}&orgError=${encodeURIComponent(res.error ?? "移譲に失敗しました。")}`,
+    );
+  }
+
+  revalidatePath("/settings/organizations");
+  redirect(
+    `/settings/organizations?org=${encodeURIComponent(
+      organizationId,
+    )}&orgMsg=${encodeURIComponent("オーナーを移譲しました。")}`,
   );
 }
 
@@ -872,6 +908,50 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                 <p className="mt-1 text-xs text-rose-700">
                   組織を削除すると、メンバー・招待・（組織の）データ参照に影響します。元に戻せません。
                 </p>
+
+                {/* オーナー移譲 */}
+                <div className="mt-4 rounded-lg border border-rose-200 bg-white p-3">
+                  <h4 className="text-xs font-semibold text-rose-800">
+                    オーナー移譲
+                  </h4>
+                  <p className="mt-1 text-[11px] text-rose-700">
+                    オーナーを別メンバーに移譲すると、あなたは管理者（Admin）になります。
+                  </p>
+                  {(!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+                    !process.env.SUPABASE_SERVICE_ROLE_KEY) ? (
+                    <p className="mt-2 text-[11px] text-rose-700">
+                      オーナー移譲にはサーバー設定が必要です（`SUPABASE_SERVICE_ROLE_KEY`）。
+                    </p>
+                  ) : members.filter((m) => m.user_id !== userId).length === 0 ? (
+                    <p className="mt-2 text-[11px] text-rose-700">
+                      移譲先のメンバーがいません。先に招待してください。
+                    </p>
+                  ) : (
+                    <form action={transferOwnershipAction} className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                      <select
+                        name="newOwnerUserId"
+                        className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                        defaultValue={members.find((m) => m.user_id !== userId)?.user_id ?? ""}
+                      >
+                        {members
+                          .filter((m) => m.user_id !== userId)
+                          .map((m) => (
+                            <option key={m.user_id} value={m.user_id}>
+                              {`ユーザー ${m.user_id.slice(0, 8)}...（${getRoleDisplayName(m.role)}）`}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+                      >
+                        移譲する
+                      </button>
+                    </form>
+                  )}
+                </div>
+
                 <form action={deleteOrganizationAction} className="mt-3">
                   <input type="hidden" name="organizationId" value={selectedOrg.id} />
                   <button

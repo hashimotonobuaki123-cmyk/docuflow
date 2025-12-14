@@ -8,6 +8,7 @@
 
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   OrganizationRole,
   Organization,
@@ -516,6 +517,114 @@ export async function leaveOrganization(
   if (error) {
     console.error("leaveOrganization error:", error);
     return { success: false, error: "組織の退出に失敗しました。" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * オーナーを移譲（owner -> newOwner）
+ * - 実行できるのは「現在のownerのみ」
+ * - 移譲先は「既存メンバーのみ」
+ * - 整合性のため、service_role（supabaseAdmin）を必須にする
+ */
+export async function transferOrganizationOwnership(
+  organizationId: string,
+  newOwnerUserId: string,
+  actorUserId: string,
+): Promise<{ success: boolean; error: string | null }> {
+  if (!organizationId || !newOwnerUserId) {
+    return { success: false, error: "パラメータが不正です。" };
+  }
+  if (newOwnerUserId === actorUserId) {
+    return { success: false, error: "自分自身に移譲することはできません。" };
+  }
+
+  // ここは「確実な移譲」を優先し、service_role 必須にする
+  if (!supabaseAdmin) {
+    return {
+      success: false,
+      error:
+        "サーバー設定が未完了のためオーナー移譲できません（SUPABASE_SERVICE_ROLE_KEY を設定してください）。",
+    };
+  }
+
+  // 現在のオーナー確認（organizations.owner_id を正とする）
+  const { data: org, error: orgError } = await supabaseAdmin
+    .from("organizations")
+    .select("owner_id")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (orgError || !org) {
+    console.error("transferOwnership org fetch error:", orgError);
+    return { success: false, error: "組織が見つかりません。" };
+  }
+  const currentOwnerId = (org as { owner_id?: string | null }).owner_id ?? null;
+  if (!currentOwnerId || currentOwnerId !== actorUserId) {
+    return { success: false, error: "オーナーのみ移譲できます。" };
+  }
+
+  // 移譲先がメンバーか確認
+  const { data: targetMember, error: targetError } = await supabaseAdmin
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", newOwnerUserId)
+    .maybeSingle();
+  if (targetError) {
+    console.error("transferOwnership target fetch error:", targetError);
+    return { success: false, error: "移譲先メンバーの確認に失敗しました。" };
+  }
+  if (!targetMember) {
+    return { success: false, error: "移譲先は組織メンバーである必要があります。" };
+  }
+
+  // ロール更新: 旧owner -> admin、移譲先 -> owner
+  // NOTE: トランザクションではないが、最後に organizations.owner_id を更新して整合を確保する
+  const { error: oldRoleError } = await supabaseAdmin
+    .from("organization_members")
+    .update({ role: "admin" })
+    .eq("organization_id", organizationId)
+    .eq("user_id", actorUserId);
+  if (oldRoleError) {
+    console.error("transferOwnership old role update error:", oldRoleError);
+    return { success: false, error: "オーナー移譲に失敗しました（旧オーナーの更新）。" };
+  }
+
+  const { error: newRoleError } = await supabaseAdmin
+    .from("organization_members")
+    .update({ role: "owner" })
+    .eq("organization_id", organizationId)
+    .eq("user_id", newOwnerUserId);
+  if (newRoleError) {
+    console.error("transferOwnership new role update error:", newRoleError);
+    // できる限り元に戻す
+    await supabaseAdmin
+      .from("organization_members")
+      .update({ role: "owner" })
+      .eq("organization_id", organizationId)
+      .eq("user_id", actorUserId);
+    return { success: false, error: "オーナー移譲に失敗しました（新オーナーの更新）。" };
+  }
+
+  const { error: ownerIdError } = await supabaseAdmin
+    .from("organizations")
+    .update({ owner_id: newOwnerUserId })
+    .eq("id", organizationId);
+  if (ownerIdError) {
+    console.error("transferOwnership org owner_id update error:", ownerIdError);
+    // できる限り元に戻す
+    await supabaseAdmin
+      .from("organization_members")
+      .update({ role: "owner" })
+      .eq("organization_id", organizationId)
+      .eq("user_id", actorUserId);
+    await supabaseAdmin
+      .from("organization_members")
+      .update({ role: (targetMember as { role?: OrganizationRole } | null)?.role ?? "member" })
+      .eq("organization_id", organizationId)
+      .eq("user_id", newOwnerUserId);
+    return { success: false, error: "オーナー移譲に失敗しました（組織の更新）。" };
   }
 
   return { success: true, error: null };
