@@ -350,4 +350,143 @@ export async function acceptInvitation(
   return { success: true, error: null, organizationId: invitation.organization_id };
 }
 
+/**
+ * メンバーを削除（owner/admin のみ）
+ * - owner: member/admin を削除可能（owner は削除不可）
+ * - admin: member のみ削除可能（admin/owner は不可）
+ */
+export async function removeOrganizationMember(
+  organizationId: string,
+  targetUserId: string,
+  actorUserId: string,
+): Promise<{ success: boolean; error: string | null }> {
+  const actorRole = await getUserRoleInOrganization(actorUserId, organizationId);
+  if (!actorRole || actorRole === "member") {
+    return { success: false, error: "メンバーを管理する権限がありません。" };
+  }
+
+  if (targetUserId === actorUserId) {
+    return { success: false, error: "自分自身を削除することはできません。" };
+  }
+
+  const { data: target, error: targetError } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", targetUserId)
+    .maybeSingle();
+
+  if (targetError) {
+    console.error("removeOrganizationMember fetch target error:", targetError);
+    return { success: false, error: "メンバー情報の取得に失敗しました。" };
+  }
+
+  const targetRole = (target as { role?: OrganizationRole } | null)?.role ?? null;
+  if (!targetRole) {
+    // すでに存在しないなら成功扱い（冪等）
+    return { success: true, error: null };
+  }
+
+  if (targetRole === "owner") {
+    return { success: false, error: "オーナーは削除できません。" };
+  }
+
+  if (actorRole === "admin" && targetRole !== "member") {
+    return { success: false, error: "管理者はメンバーのみ削除できます。" };
+  }
+
+  const { error } = await supabase
+    .from("organization_members")
+    .delete()
+    .eq("organization_id", organizationId)
+    .eq("user_id", targetUserId);
+
+  if (error) {
+    console.error("removeOrganizationMember delete error:", error);
+    return { success: false, error: "メンバーの削除に失敗しました。" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * メンバーのロールを変更（owner のみ）
+ * - owner -> (admin|member) への変更は不可（オーナーは維持）
+ */
+export async function updateOrganizationMemberRole(
+  organizationId: string,
+  targetUserId: string,
+  newRole: Exclude<OrganizationRole, "owner">,
+  actorUserId: string,
+): Promise<{ success: boolean; error: string | null }> {
+  const actorRole = await getUserRoleInOrganization(actorUserId, organizationId);
+  if (actorRole !== "owner") {
+    return { success: false, error: "ロールを変更する権限がありません。" };
+  }
+
+  // 自分自身のownerロールは落とさない（事故防止）
+  if (targetUserId === actorUserId) {
+    return { success: false, error: "自分自身のロールは変更できません。" };
+  }
+
+  const { data: target, error: targetError } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", targetUserId)
+    .maybeSingle();
+
+  if (targetError) {
+    console.error("updateOrganizationMemberRole fetch target error:", targetError);
+    return { success: false, error: "メンバー情報の取得に失敗しました。" };
+  }
+
+  const targetRole = (target as { role?: OrganizationRole } | null)?.role ?? null;
+  if (!targetRole) {
+    return { success: false, error: "対象メンバーが見つかりません。" };
+  }
+  if (targetRole === "owner") {
+    return { success: false, error: "オーナーのロールは変更できません。" };
+  }
+
+  const { error } = await supabase
+    .from("organization_members")
+    .update({ role: newRole })
+    .eq("organization_id", organizationId)
+    .eq("user_id", targetUserId);
+
+  if (error) {
+    console.error("updateOrganizationMemberRole update error:", error);
+    return { success: false, error: "ロール変更に失敗しました。" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * 組織を削除（owner のみ）
+ * - organizations 行の削除で、members/invitations は on delete cascade を想定
+ */
+export async function deleteOrganization(
+  organizationId: string,
+  actorUserId: string,
+): Promise<{ success: boolean; error: string | null }> {
+  const actorRole = await getUserRoleInOrganization(actorUserId, organizationId);
+  if (actorRole !== "owner") {
+    return { success: false, error: "組織を削除する権限がありません。" };
+  }
+
+  const { error } = await supabase
+    .from("organizations")
+    .delete()
+    .eq("id", organizationId);
+
+  if (error) {
+    console.error("deleteOrganization error:", error);
+    return { success: false, error: "組織の削除に失敗しました。" };
+  }
+
+  return { success: true, error: null };
+}
+
 // getRoleDisplayName / getRoleBadgeClass は organizationTypes から再利用

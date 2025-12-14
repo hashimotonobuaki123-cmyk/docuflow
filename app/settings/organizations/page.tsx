@@ -10,6 +10,9 @@ import {
   getOrganizationMembers,
   getUserRoleInOrganization,
   createInvitation,
+  removeOrganizationMember,
+  updateOrganizationMemberRole,
+  deleteOrganization,
 } from "@/lib/organizations";
 import {
   getOrganizationSubscription,
@@ -33,6 +36,8 @@ type PageProps = {
     lang?: string;
     inviteToken?: string;
     inviteError?: string;
+    orgMsg?: string;
+    orgError?: string;
   }>;
 };
 
@@ -113,6 +118,108 @@ async function inviteAction(formData: FormData) {
   );
 }
 
+async function removeMemberAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value;
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  const organizationId = String(formData.get("organizationId") ?? "").trim();
+  const targetUserId = String(formData.get("targetUserId") ?? "").trim();
+  if (!organizationId || !targetUserId) {
+    redirect(`/settings/organizations?org=${encodeURIComponent(organizationId)}`);
+  }
+
+  const res = await removeOrganizationMember(organizationId, targetUserId, userId);
+  if (!res.success) {
+    redirect(
+      `/settings/organizations?org=${encodeURIComponent(
+        organizationId,
+      )}&orgError=${encodeURIComponent(res.error ?? "操作に失敗しました。")}`,
+    );
+  }
+
+  revalidatePath("/settings/organizations");
+  redirect(
+    `/settings/organizations?org=${encodeURIComponent(
+      organizationId,
+    )}&orgMsg=${encodeURIComponent("メンバーを削除しました。")}`,
+  );
+}
+
+async function changeRoleAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value;
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  const organizationId = String(formData.get("organizationId") ?? "").trim();
+  const targetUserId = String(formData.get("targetUserId") ?? "").trim();
+  const newRole = String(formData.get("newRole") ?? "").trim() as
+    | "admin"
+    | "member";
+
+  if (!organizationId || !targetUserId || (newRole !== "admin" && newRole !== "member")) {
+    redirect(`/settings/organizations?org=${encodeURIComponent(organizationId)}`);
+  }
+
+  const res = await updateOrganizationMemberRole(
+    organizationId,
+    targetUserId,
+    newRole,
+    userId,
+  );
+  if (!res.success) {
+    redirect(
+      `/settings/organizations?org=${encodeURIComponent(
+        organizationId,
+      )}&orgError=${encodeURIComponent(res.error ?? "操作に失敗しました。")}`,
+    );
+  }
+
+  revalidatePath("/settings/organizations");
+  redirect(
+    `/settings/organizations?org=${encodeURIComponent(
+      organizationId,
+    )}&orgMsg=${encodeURIComponent("ロールを更新しました。")}`,
+  );
+}
+
+async function deleteOrganizationAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value;
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  const organizationId = String(formData.get("organizationId") ?? "").trim();
+  if (!organizationId) {
+    redirect("/settings/organizations");
+  }
+
+  const res = await deleteOrganization(organizationId, userId);
+  if (!res.success) {
+    redirect(
+      `/settings/organizations?org=${encodeURIComponent(
+        organizationId,
+      )}&orgError=${encodeURIComponent(res.error ?? "削除に失敗しました。")}`,
+    );
+  }
+
+  // 削除した組織がアクティブならCookieを消す
+  cookieStore.delete("docuflow_active_org");
+
+  revalidatePath("/settings/organizations");
+  redirect(
+    `/settings/organizations?orgMsg=${encodeURIComponent("組織を削除しました。")}`,
+  );
+}
+
 export default async function OrganizationsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const action = params?.action;
@@ -120,6 +227,8 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
   const locale: Locale = getLocaleFromParam(params?.lang);
   const inviteToken = params?.inviteToken;
   const inviteError = params?.inviteError;
+  const orgMsg = params?.orgMsg;
+  const orgError = params?.orgError;
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value;
@@ -201,6 +310,23 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-8">
+        {(orgError || orgMsg) && (
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">
+              お知らせ
+            </h2>
+            {orgError ? (
+              <p className="mt-2 text-sm text-rose-600">
+                {orgError}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-emerald-700">
+                {orgMsg}
+              </p>
+            )}
+          </section>
+        )}
+
         {(inviteError || inviteToken) && (
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900">
@@ -512,13 +638,75 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${getRoleBadgeClass(
-                        member.role
-                      )}`}
-                    >
-                      {getRoleDisplayName(member.role)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${getRoleBadgeClass(
+                          member.role
+                        )}`}
+                      >
+                        {getRoleDisplayName(member.role)}
+                      </span>
+
+                      {/* Owner: promote/demote/remove (owner不可) */}
+                      {userRole === "owner" &&
+                        member.role !== "owner" &&
+                        member.user_id !== userId && (
+                        <>
+                          {member.role === "member" ? (
+                            <form action={changeRoleAction}>
+                              <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                              <input type="hidden" name="targetUserId" value={member.user_id} />
+                              <input type="hidden" name="newRole" value="admin" />
+                              <button
+                                type="submit"
+                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                管理者にする
+                              </button>
+                            </form>
+                          ) : (
+                            <form action={changeRoleAction}>
+                              <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                              <input type="hidden" name="targetUserId" value={member.user_id} />
+                              <input type="hidden" name="newRole" value="member" />
+                              <button
+                                type="submit"
+                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                メンバーに戻す
+                              </button>
+                            </form>
+                          )}
+
+                          <form action={removeMemberAction}>
+                            <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                            <input type="hidden" name="targetUserId" value={member.user_id} />
+                            <button
+                              type="submit"
+                              className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-100"
+                            >
+                              削除
+                            </button>
+                          </form>
+                        </>
+                      )}
+
+                      {/* Admin: remove member only */}
+                      {userRole === "admin" &&
+                        member.role === "member" &&
+                        member.user_id !== userId && (
+                        <form action={removeMemberAction}>
+                          <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                          <input type="hidden" name="targetUserId" value={member.user_id} />
+                          <button
+                            type="submit"
+                            className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-100"
+                          >
+                            削除
+                          </button>
+                        </form>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -637,6 +825,27 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
                 <p className="mt-2 text-xs text-slate-500">
                   {"招待リンクが生成され、相手がリンクをクリックすると組織に参加できます"}
                 </p>
+              </div>
+            )}
+
+            {/* 危険な操作（ownerのみ） */}
+            {userRole === "owner" && (
+              <div className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <h3 className="text-sm font-semibold text-rose-800">
+                  危険な操作
+                </h3>
+                <p className="mt-1 text-xs text-rose-700">
+                  組織を削除すると、メンバー・招待・（組織の）データ参照に影響します。元に戻せません。
+                </p>
+                <form action={deleteOrganizationAction} className="mt-3">
+                  <input type="hidden" name="organizationId" value={selectedOrg.id} />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+                  >
+                    組織を削除する
+                  </button>
+                </form>
               </div>
             )}
           </section>
