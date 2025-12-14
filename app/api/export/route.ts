@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -10,31 +10,48 @@ export async function GET() {
 
   if (!userId) {
     return NextResponse.json(
-      { error: "Unauthorized: missing user session" },
+      { error: "ログインが必要です。" },
       { status: 401 },
     );
   }
 
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      {
+        error:
+          "エクスポート機能は現在利用できません（サーバー設定が未完了です）。",
+      },
+      { status: 500 },
+    );
+  }
+
+  // NOTE:
+  // - Supabase Service Role を使うため、必ず user_id で絞り込み、他ユーザーのデータが混ざらないようにする
+  // - エクスポート対象は「ユーザー本人が作成したデータ」に限定（組織データの完全エクスポートは将来対応）
   const [documentsRes, commentsRes, activityRes, notificationsRes] =
     await Promise.all([
-      supabase
+      supabaseAdmin
         .from("documents")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: true })
-        .limit(1000),
-      supabase
+        .limit(5000),
+      supabaseAdmin
         .from("document_comments")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: true })
-        .limit(1000),
-      supabase
+        .limit(5000),
+      supabaseAdmin
         .from("activity_logs")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: true })
         .limit(2000),
-      supabase
+      supabaseAdmin
         .from("notifications")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: true })
         .limit(500),
     ]);
