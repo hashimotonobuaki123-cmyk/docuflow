@@ -122,13 +122,13 @@ export default async function HomeEn() {
               ) : (
                 <>
                   <Link
-                    href="/auth/login"
+                    href="/en/auth/login"
                     className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-4 py-2"
                   >
                     Log in
                   </Link>
                   <Link
-                    href="/auth/signup"
+                    href="/en/auth/signup"
                     className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-emerald-500/25"
                   >
                     Start free trial
@@ -173,7 +173,7 @@ export default async function HomeEn() {
 
             <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/auth/signup"
+                href="/en/auth/signup"
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-white font-semibold px-8 py-4 rounded-full text-lg transition-all hover:shadow-2xl hover:shadow-emerald-500/25 hover:-translate-y-0.5"
               >
                 <span>Start 14-day free trial</span>
@@ -278,7 +278,7 @@ export default async function HomeEn() {
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                href="/auth/signup"
+                href="/en/auth/signup"
                 className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 hover:bg-white/90"
               >
                 Start free trial <ArrowRight className="h-4 w-4" />
@@ -348,7 +348,7 @@ export default async function HomeEn() {
                 ))}
               </ul>
               <Link
-                href="/auth/signup"
+                href="/en/auth/signup"
                 className="block text-center py-3 rounded-full border border-white/10 text-white font-medium hover:bg-white/5 transition-all"
               >
                 Start for free
@@ -373,7 +373,7 @@ export default async function HomeEn() {
                 ))}
               </ul>
               <Link
-                href="/auth/signup?plan=pro"
+                href="/en/auth/signup?plan=pro"
                 className="block text-center py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white font-semibold transition-all"
               >
                 Start free trial
@@ -395,7 +395,7 @@ export default async function HomeEn() {
                 ))}
               </ul>
               <Link
-                href="/auth/signup?plan=team"
+                href="/en/auth/signup?plan=team"
                 className="block text-center py-3 rounded-full border border-white/10 text-white font-medium hover:bg-white/5 transition-all"
               >
                 Start free trial
@@ -438,7 +438,7 @@ export default async function HomeEn() {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                href="/auth/signup"
+                href="/en/auth/signup"
                 className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 hover:bg-white/90"
               >
                 Start free trial <ArrowRight className="h-4 w-4" />

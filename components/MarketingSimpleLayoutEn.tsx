@@ -23,13 +23,13 @@ export function MarketingSimpleLayoutEn({ title, description, children }: Props)
             </Link>
             <div className="flex items-center gap-3">
               <Link
-                href="/auth/login"
+                href="/en/auth/login"
                 className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-3 py-2"
               >
                 Log in
               </Link>
               <Link
-                href="/auth/signup"
+                href="/en/auth/signup"
                 className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-emerald-500/25"
               >
                 Start free trial

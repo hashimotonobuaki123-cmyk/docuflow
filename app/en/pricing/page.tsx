@@ -110,7 +110,7 @@ export default async function PricingEnPage() {
             ))}
           </ul>
           <Link
-            href="/auth/signup"
+            href="/en/auth/signup"
             className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium hover:bg-white/10"
           >
             Start for free
@@ -141,7 +141,7 @@ export default async function PricingEnPage() {
             ))}
           </ul>
           <Link
-            href="/auth/signup?plan=pro"
+            href="/en/auth/signup?plan=pro"
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400"
           >
             <span>Start free trial</span>
@@ -171,7 +171,7 @@ export default async function PricingEnPage() {
             ))}
           </ul>
           <Link
-            href="/auth/signup?plan=team"
+            href="/en/auth/signup?plan=team"
             className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium hover:bg-white/10"
           >
             Start free trial

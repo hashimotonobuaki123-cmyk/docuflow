@@ -32,7 +32,7 @@ export default function SupportEnPage() {
       <h3>How do I cancel?</h3>
       <p>
         Go to Settings → Billing in the app. You’ll need to{" "}
-        <Link href="/auth/login">log in</Link>.
+        <Link href="/en/auth/login">log in</Link>.
       </p>
 
       <h2>Legal</h2>
