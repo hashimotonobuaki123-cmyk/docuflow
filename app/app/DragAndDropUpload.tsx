@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, DragEvent } from "react";
+import type { Locale } from "@/lib/i18n";
 
 type Props = {
   uploadAction: (formData: FormData) => Promise<void>;
+  lang?: Locale;
 };
 
 const ALLOWED_TYPES = [
@@ -12,7 +14,7 @@ const ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-export function DragAndDropUpload({ uploadAction }: Props) {
+export function DragAndDropUpload({ uploadAction, lang }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,12 +45,15 @@ export function DragAndDropUpload({ uploadAction }: Props) {
 
     if (validFiles.length === 0) {
       setMessage(
-        "PDF / Word（.pdf / .doc / .docx）のみアップロードできます。",
+        lang === "en"
+          ? "Only PDF / Word files (.pdf / .doc / .docx) are supported."
+          : "PDF / Word（.pdf / .doc / .docx）のみアップロードできます。",
       );
       return;
     }
 
     const formData = new FormData();
+    if (lang) formData.set("lang", lang);
     for (const file of validFiles) {
       formData.append("files", file);
     }
@@ -57,20 +62,30 @@ export function DragAndDropUpload({ uploadAction }: Props) {
       setIsUploading(true);
       setMessage(
         validFiles.length === 1
-          ? "AI がドキュメントを読み込み中です…"
-          : `AI が ${validFiles.length} 件のドキュメントを読み込み中です…`,
+          ? lang === "en"
+            ? "AI is processing your document..."
+            : "AI がドキュメントを読み込み中です…"
+          : lang === "en"
+            ? `AI is processing ${validFiles.length} documents...`
+            : `AI が ${validFiles.length} 件のドキュメントを読み込み中です…`,
       );
       await uploadAction(formData);
       // 成功するとサーバーアクション側で /app が再検証され、新しいカードが一覧に表示される
       setMessage(
         validFiles.length === 1
-          ? "カードを作成しました。数秒後に一覧へ反映されます。"
-          : `${validFiles.length} 枚のカードを作成しました。数秒後に一覧へ反映されます。`,
+          ? lang === "en"
+            ? "Created the card. It will appear in the list in a few seconds."
+            : "カードを作成しました。数秒後に一覧へ反映されます。"
+          : lang === "en"
+            ? `Created ${validFiles.length} cards. They will appear in the list in a few seconds.`
+            : `${validFiles.length} 枚のカードを作成しました。数秒後に一覧へ反映されます。`,
       );
     } catch (e) {
       console.error(e);
       setMessage(
-        "アップロードに失敗しました。時間をおいて再度お試しください。",
+        lang === "en"
+          ? "Upload failed. Please try again later."
+          : "アップロードに失敗しました。時間をおいて再度お試しください。",
       );
     } finally {
       setIsUploading(false);
@@ -90,15 +105,19 @@ export function DragAndDropUpload({ uploadAction }: Props) {
         }`}
       >
         <p className="text-[11px] font-semibold text-slate-800">
-          ファイルをここにドラッグ＆ドロップしてカードを作成
+          {lang === "en"
+            ? "Drag & drop files here to create cards"
+            : "ファイルをここにドラッグ＆ドロップしてカードを作成"}
         </p>
         <p className="text-[10px] text-slate-500">
-          PDF / Word（.pdf / .doc / .docx）をドロップすると、AI がタイトル・概要・タグ付きのカードを自動生成します。
+          {lang === "en"
+            ? "Drop a PDF / Word file (.pdf / .doc / .docx) and DocuFlow will generate a card with title, summary, and tags."
+            : "PDF / Word（.pdf / .doc / .docx）をドロップすると、AI がタイトル・概要・タグ付きのカードを自動生成します。"}
         </p>
         {isUploading && (
           <p className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600">
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-            生成中…
+            {lang === "en" ? "Processing..." : "生成中…"}
           </p>
         )}
       </div>

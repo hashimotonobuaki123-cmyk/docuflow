@@ -29,6 +29,7 @@ import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AppOnboardingTour } from "@/components/AppOnboardingTour";
 import { EmptyState } from "@/components/EmptyState";
+import { getLocaleFromParam, t, type Locale } from "@/lib/i18n";
 import {
   getUserNotifications,
   getUnreadNotificationCount,
@@ -161,10 +162,11 @@ type ActivityLog = {
 // Server Actions
 async function toggleFavorite(formData: FormData) {
   "use server";
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
   const id = String(formData.get("id") ?? "");
   const next = String(formData.get("next") ?? "") === "true";
@@ -181,10 +183,11 @@ async function toggleFavorite(formData: FormData) {
 
 async function togglePinned(formData: FormData) {
   "use server";
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
   const id = String(formData.get("id") ?? "");
   const next = String(formData.get("next") ?? "") === "true";
@@ -201,10 +204,11 @@ async function togglePinned(formData: FormData) {
 
 async function deleteDocumentFromList(formData: FormData) {
   "use server";
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
@@ -214,17 +218,22 @@ async function deleteDocumentFromList(formData: FormData) {
     .delete()
     .eq("id", id)
     .eq("user_id", userId);
-  if (error) throw new Error("Failed to delete document.");
+  if (error) {
+    throw new Error(
+      locale === "en" ? "Failed to delete the document." : "削除に失敗しました。",
+    );
+  }
   await logActivity("delete_document", { documentId: id, documentTitle: title });
   revalidatePath("/app");
 }
 
 async function toggleArchivedFromList(formData: FormData) {
   "use server";
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
@@ -235,17 +244,24 @@ async function toggleArchivedFromList(formData: FormData) {
     .update({ is_archived: next })
     .eq("id", id)
     .eq("user_id", userId);
-  if (error) throw new Error("Failed to toggle archived.");
+  if (error) {
+    throw new Error(
+      locale === "en"
+        ? "Failed to update archive state."
+        : "アーカイブ状態の更新に失敗しました。",
+    );
+  }
   await logActivity(next ? "archive_document" : "restore_document", { documentId: id, documentTitle: title });
   revalidatePath("/app");
 }
 
 async function deleteDocumentsBulk(formData: FormData) {
   "use server";
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
   const selectedIds = formData.getAll("ids").map((v) => String(v).trim()).filter((v) => v.length > 0);
   const allIds = formData.getAll("allIds").map((v) => String(v).trim()).filter((v) => v.length > 0);
@@ -261,7 +277,13 @@ async function deleteDocumentsBulk(formData: FormData) {
     .delete()
     .eq("user_id", userId)
     .in("id", ids);
-  if (error) throw new Error("Failed to delete documents.");
+  if (error) {
+    throw new Error(
+      locale === "en"
+        ? "Failed to delete documents."
+        : "ドキュメントの削除に失敗しました。",
+    );
+  }
   if (docs && Array.isArray(docs)) {
     for (const doc of docs as { id: string; title: string | null }[]) {
       await logActivity("delete_document", { documentId: doc.id, documentTitle: doc.title ?? null });
@@ -272,6 +294,7 @@ async function deleteDocumentsBulk(formData: FormData) {
 
 async function createDocumentFromFileOnDashboard(formData: FormData) {
   "use server";
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   const activeOrgId = userId ? await getActiveOrganizationId(userId) : null;
@@ -287,7 +310,7 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
     if (file.size > MAX_FILE_SIZE_BYTES) continue;
 
     // 1件ずつ上限チェック（抜け道防止）
-    const docLimit = await canCreateDocument(userId, activeOrgId, "ja");
+    const docLimit = await canCreateDocument(userId, activeOrgId, locale);
     if (!docLimit.allowed) break;
 
     let content: string;
@@ -304,7 +327,7 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
       userId,
       activeOrgId,
       contentSizeMB,
-      "ja",
+      locale,
     );
     if (!storageLimit.allowed) break;
 
@@ -313,20 +336,23 @@ async function createDocumentFromFileOnDashboard(formData: FormData) {
     try {
       if (process.env.OPENAI_API_KEY) {
         // title + category + summary + embedding
-        await ensureAndConsumeAICalls(userId, activeOrgId, 4, "ja");
+        await ensureAndConsumeAICalls(userId, activeOrgId, 4, locale);
       }
       const [generatedTitle, generatedCategory, generated] = await Promise.all([
         generateTitleFromContent(content),
         generateCategoryFromContent(content),
         generateSummaryAndTags(content),
       ]);
-      title = generatedTitle || content.slice(0, 30) || "無題";
-      category = generatedCategory || "未分類";
+      title =
+        generatedTitle ||
+        content.slice(0, 30) ||
+        (locale === "en" ? "Untitled" : "無題");
+      category = generatedCategory || (locale === "en" ? "Uncategorized" : "未分類");
       summary = generated.summary;
       tags = generated.tags;
     } catch {
-      title = content.slice(0, 30) || "無題";
-      category = "未分類";
+      title = content.slice(0, 30) || (locale === "en" ? "Untitled" : "無題");
+      category = locale === "en" ? "Uncategorized" : "未分類";
     }
 
     const { data, error } = await supabase
@@ -377,6 +403,7 @@ type DashboardProps = {
     onlyFavorites?: string;
     onlyPinned?: string;
     archived?: string;
+    lang?: string;
   }>;
 };
 
@@ -389,6 +416,15 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
     const onlyFavorites = params?.onlyFavorites === "1";
     const onlyPinned = params?.onlyPinned === "1";
     const showArchived = params?.archived === "1";
+    const locale: Locale = getLocaleFromParam(params?.lang);
+    const langQuery = locale === "en" ? "lang=en" : "";
+
+    const withLang = (href: string) => {
+      if (locale !== "en") return href;
+      if (href.includes("lang=en")) return href;
+      if (href.includes("?")) return `${href}&${langQuery}`;
+      return `${href}?${langQuery}`;
+    };
 
     let cookieStore;
     try {
@@ -440,9 +476,13 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
     }
 
     const allDocuments = ((data ?? []) as Document[]).filter((doc) => (userId ? doc.user_id === userId : true));
-    const categories = Array.from(new Set(allDocuments.map((doc) => doc.category).filter((c): c is string => !!c && c.length > 0))).sort((a, b) =>
-      a.localeCompare(b, "ja")
-    );
+    const categories = Array.from(
+      new Set(
+        allDocuments
+          .map((doc) => doc.category)
+          .filter((c): c is string => !!c && c.length > 0),
+      ),
+    ).sort((a, b) => a.localeCompare(b, locale === "en" ? "en" : "ja"));
     const documents = filterDocuments(allDocuments, query, category, onlyFavorites, onlyPinned);
     const sortedDocuments = [...documents].sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
@@ -482,7 +522,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
       try {
         // ベクトル検索（埋め込み生成）はAI呼び出しとしてカウントし、月間上限を強制する
         if (process.env.OPENAI_API_KEY) {
-          await ensureAndConsumeAICalls(userId, activeOrgId, 1, "ja");
+          await ensureAndConsumeAICalls(userId, activeOrgId, 1, locale);
         }
         similarDocuments = await searchSimilarDocuments(query, userId, 0.5, 5);
       } catch (similarError) {
@@ -518,28 +558,32 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
         <header className="sticky top-0 z-40 h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl">
           <div className="flex items-center gap-4">
             <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {showArchived ? "アーカイブ" : "ドキュメント"}
+              {showArchived
+                ? (locale === "en" ? "Archive" : "アーカイブ")
+                : (locale === "en" ? "Documents" : "ドキュメント")}
             </h1>
             <OrganizationSwitcher organizations={organizations} activeOrganizationId={activeOrgId} switchAction={switchOrganization} />
             <Badge variant="success" size="sm" dot>
-              正常稼働中
+              {t(locale, "statusOk")}
             </Badge>
           </div>
 
           <div className="flex items-center gap-3">
             {/* Stats Pills */}
             <div className="hidden lg:flex items-center gap-2">
-              <Badge variant="default" size="sm">{totalCount} 件</Badge>
+              <Badge variant="default" size="sm">
+                {totalCount} {t(locale, "docs")}
+              </Badge>
               <Badge variant="primary" size="sm">{pinnedCount} <Pin className="h-3 w-3 ml-0.5" /></Badge>
               <Badge variant="warning" size="sm">{favoriteCount} <Star className="h-3 w-3 ml-0.5" /></Badge>
             </div>
 
             <Link
-              href="/app/whats-new"
+              href={withLang("/app/whats-new")}
               className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 transition-colors"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span>新着情報</span>
+              <span>{locale === "en" ? "What's new" : "新着情報"}</span>
             </Link>
 
             {userId && (
@@ -562,40 +606,51 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
             {/* Stats Grid */}
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
-                title="ドキュメント総数"
+                title={t(locale, "totalDocuments")}
                 value={totalCount}
-                subtitle={lastActivityAt ? `最終操作: ${lastActivityAt}` : undefined}
+                subtitle={
+                  lastActivityAt
+                    ? locale === "en"
+                      ? `Last activity: ${lastActivityAt}`
+                      : `最終操作: ${lastActivityAt}`
+                    : undefined
+                }
                 icon={<FileText className="h-5 w-5" />}
                 variant="highlight"
                 trend={createdLast30Days > 0 ? { value: Math.round((createdLast30Days / Math.max(totalCount, 1)) * 100) } : undefined}
               />
               <StatCard
-                title="ピン留め"
+                title={t(locale, "pinned")}
                 value={pinnedCount}
-                subtitle="素早くアクセス"
+                subtitle={locale === "en" ? "Quick access" : "素早くアクセス"}
                 icon={<Pin className="h-5 w-5" />}
               />
               <StatCard
-                title="お気に入り"
+                title={t(locale, "favorites")}
                 value={favoriteCount}
-                subtitle="重要なドキュメント"
+                subtitle={locale === "en" ? "Important docs" : "重要なドキュメント"}
                 icon={<Star className="h-5 w-5" />}
               />
               <StatCard
-                title="30日間の活動"
+                title={locale === "en" ? "Activity (30 days)" : "30日間の活動"}
                 value={createdLast30Days}
-                subtitle={`${sharedCount} 件を共有中`}
+                subtitle={
+                  locale === "en"
+                    ? `${sharedCount} shared`
+                    : `${sharedCount} 件を共有中`
+                }
                 icon={<TrendingUp className="h-5 w-5" />}
                 trend={{ value: 12 }}
               />
             </section>
 
             {/* Upload Area */}
-            <DragAndDropUpload uploadAction={createDocumentFromFileOnDashboard} />
+            <DragAndDropUpload uploadAction={createDocumentFromFileOnDashboard} lang={locale} />
 
             {/* Search & Filter */}
             <Card padding="md">
               <form className="space-y-4">
+                {locale === "en" && <input type="hidden" name="lang" value="en" />}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -603,7 +658,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                       type="text"
                       name="q"
                       defaultValue={query}
-                      placeholder="タイトル、本文、タグで検索..."
+                      placeholder={t(locale, "searchPlaceholder")}
                       className="w-full h-11 pl-10 pr-4 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                     />
                   </div>
@@ -612,7 +667,9 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                     defaultValue={category}
                     className="h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 min-w-[140px]"
                   >
-                    <option value="">すべてのカテゴリ</option>
+                    <option value="">
+                      {locale === "en" ? "All categories" : "すべてのカテゴリ"}
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
@@ -622,42 +679,49 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                     defaultValue={sort}
                     className="h-11 px-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 min-w-[120px]"
                   >
-                    <option value="desc">新しい順</option>
-                    <option value="asc">古い順</option>
+                    <option value="desc">
+                      {locale === "en" ? "Newest" : "新しい順"}
+                    </option>
+                    <option value="asc">
+                      {locale === "en" ? "Oldest" : "古い順"}
+                    </option>
                   </select>
                   <Button type="submit" variant="primary">
                     <Search className="h-4 w-4" />
-                    検索
+                    {locale === "en" ? "Search" : "検索"}
                   </Button>
-                  <Link href="/new">
+                  <Link href={withLang("/new")}>
                     <Button variant="secondary" type="button">
                       <Plus className="h-4 w-4" />
-                      新規
+                      {locale === "en" ? "New" : "新規"}
                     </Button>
                   </Link>
                 </div>
 
                 {/* Quick Filters */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-slate-500">クイック:</span>
-                  <Link href="/app">
+                  <span className="text-xs text-slate-500">
+                    {locale === "en" ? "Quick:" : "クイック:"}
+                  </span>
+                  <Link href={withLang("/app")}>
                     <Badge variant={!query && !category && !onlyFavorites && !onlyPinned && !showArchived ? "primary" : "default"} className="cursor-pointer">
-                      すべて
+                      {t(locale, "filterAll")}
                     </Badge>
                   </Link>
-                  <Link href="/app?onlyPinned=1">
+                  <Link href={withLang("/app?onlyPinned=1")}>
                     <Badge variant={onlyPinned ? "primary" : "default"} className="cursor-pointer">
-                      <Pin className="h-3 w-3 mr-1" /> ピン
+                      <Pin className="h-3 w-3 mr-1" /> {t(locale, "pins")}
                     </Badge>
                   </Link>
-                  <Link href="/app?onlyFavorites=1">
+                  <Link href={withLang("/app?onlyFavorites=1")}>
                     <Badge variant={onlyFavorites ? "primary" : "default"} className="cursor-pointer">
-                      <Star className="h-3 w-3 mr-1" /> お気に入り
+                      <Star className="h-3 w-3 mr-1" /> {t(locale, "favorites")}
                     </Badge>
                   </Link>
-                  <Link href="/app?archived=1">
+                  <Link href={withLang("/app?archived=1")}>
                     <Badge variant={showArchived ? "warning" : "default"} className="cursor-pointer">
-                      <Archive className="h-3 w-3 mr-1" /> アーカイブ
+                      <Archive className="h-3 w-3 mr-1" />{" "}
+                      {t(locale, "archived")}
                     </Badge>
                   </Link>
                 </div>
@@ -673,9 +737,15 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                       <Brain className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-sm">AI類似検索結果</CardTitle>
+                      <CardTitle className="text-sm">
+                        {locale === "en"
+                          ? "AI Similar Search"
+                          : "AI類似検索結果"}
+                      </CardTitle>
                       <p className="text-xs text-slate-500">
-                        「{query}」に意味的に近いドキュメント
+                        {locale === "en"
+                          ? `Documents semantically similar to “${query}”`
+                          : `「${query}」に意味的に近いドキュメント`}
                       </p>
                     </div>
                   </div>
@@ -684,7 +754,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                   {similarDocuments.map((doc) => (
                     <Link
                       key={doc.id}
-                      href={`/documents/${doc.id}`}
+                      href={withLang(`/documents/${doc.id}`)}
                       className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
@@ -702,14 +772,24 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {showArchived ? "アーカイブされたドキュメント" : "あなたのドキュメント"}
+                  {showArchived
+                    ? locale === "en"
+                      ? "Archived documents"
+                      : "アーカイブされたドキュメント"
+                    : locale === "en"
+                      ? "Your documents"
+                      : "あなたのドキュメント"}
                 </h2>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500">
-                    {sortedDocuments.length} 件
-                    {query && ` (検索: "${query}")`}
+                    {sortedDocuments.length} {t(locale, "docs")}
+                    {query &&
+                      (locale === "en"
+                        ? ` (query: "${query}")`
+                        : ` (検索: "${query}")`)}
                   </span>
                   <form id="bulk-delete-form" action={deleteDocumentsBulk}>
+                    <input type="hidden" name="lang" value={locale} />
                     <BulkDeleteConfirmButton formId="bulk-delete-form" />
                   </form>
                 </div>
@@ -720,18 +800,36 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                   icon={showArchived ? "📦" : "📄"}
                   title={
                     showArchived
-                      ? "アーカイブされたドキュメントはありません"
-                      : "ドキュメントがまだありません"
+                      ? locale === "en"
+                        ? "No archived documents"
+                        : "アーカイブされたドキュメントはありません"
+                      : locale === "en"
+                        ? "No documents yet"
+                        : "ドキュメントがまだありません"
                   }
                   description={
                     showArchived
-                      ? "アーカイブに移動したドキュメントがここに表示されます。"
+                      ? locale === "en"
+                        ? "Documents moved to archive will appear here."
+                        : "アーカイブに移動したドキュメントがここに表示されます。"
                       : query
-                      ? `「${query}」に一致するドキュメントが見つかりません。`
-                      : "最初のドキュメントを作成して、AIによる自動要約を体験しましょう。"
+                      ? locale === "en"
+                        ? `No documents match “${query}”.`
+                        : `「${query}」に一致するドキュメントが見つかりません。`
+                      : locale === "en"
+                        ? "Create your first document and try AI-powered summaries."
+                        : "最初のドキュメントを作成して、AIによる自動要約を体験しましょう。"
                   }
-                  actionLabel={showArchived ? "すべて表示" : "新規作成"}
-                  actionHref={showArchived ? "/app" : "/new"}
+                  actionLabel={
+                    showArchived
+                      ? locale === "en"
+                        ? "Show all"
+                        : "すべて表示"
+                      : locale === "en"
+                        ? "Create"
+                        : "新規作成"
+                  }
+                  actionHref={withLang(showArchived ? "/app" : "/new")}
                 />
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
@@ -767,13 +865,17 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                           value={doc.id}
                           form="bulk-delete-form"
                           className="h-4 w-4 rounded border-slate-300 text-rose-500 focus:ring-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label={`${doc.title} を選択`}
+                          aria-label={
+                            locale === "en"
+                              ? `Select ${doc.title}`
+                              : `${doc.title} を選択`
+                          }
                         />
                       </div>
 
                       {/* Header */}
                       <div className="mb-3 pr-24">
-                        <Link href={`/documents/${doc.id}`} className="block group/title">
+                        <Link href={withLang(`/documents/${doc.id}`)} className="block group/title">
                           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2 group-hover/title:text-emerald-600 dark:group-hover/title:text-emerald-400 transition-colors">
                             {doc.title}
                           </h3>
@@ -783,7 +885,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                           {Boolean(doc.is_archived) && (
                             <Badge variant="default" size="sm">
                               <Archive className="h-3 w-3 mr-1" />
-                              アーカイブ
+                              {t(locale, "archived")}
                             </Badge>
                           )}
                         </div>
@@ -802,7 +904,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                             {tagsArr.slice(0, 4).map((tag) => (
                               <Link
                                 key={tag}
-                                href={`/app?q=${encodeURIComponent(tag)}`}
+                                href={withLang(`/app?q=${encodeURIComponent(tag)}`)}
                                 className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors"
                               >
                                 #{tag}
@@ -837,6 +939,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                           {/* Actions */}
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <form action={togglePinned}>
+                              <input type="hidden" name="lang" value={locale} />
                               <input type="hidden" name="id" value={doc.id} />
                               <input type="hidden" name="next" value={doc.is_pinned ? "false" : "true"} />
                               <button type="submit" className={`h-7 w-7 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${doc.is_pinned ? "text-amber-600" : "text-slate-400"}`}>
@@ -844,6 +947,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                               </button>
                             </form>
                             <form action={toggleFavorite}>
+                              <input type="hidden" name="lang" value={locale} />
                               <input type="hidden" name="id" value={doc.id} />
                               <input type="hidden" name="next" value={doc.is_favorite ? "false" : "true"} />
                               <button type="submit" className={`h-7 w-7 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${doc.is_favorite ? "text-rose-500" : "text-slate-400"}`}>
@@ -851,6 +955,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                               </button>
                             </form>
                             <form action={toggleArchivedFromList}>
+                              <input type="hidden" name="lang" value={locale} />
                               <input type="hidden" name="id" value={doc.id} />
                               <input type="hidden" name="title" value={doc.title} />
                               <input type="hidden" name="next" value={doc.is_archived ? "false" : "true"} />
@@ -859,6 +964,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
                               </button>
                             </form>
                             <form action={deleteDocumentFromList}>
+                              <input type="hidden" name="lang" value={locale} />
                               <input type="hidden" name="id" value={doc.id} />
                               <input type="hidden" name="title" value={doc.title} />
                               <button type="submit" data-doc-delete-button className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 transition-colors">
@@ -879,10 +985,10 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    最近のアクティビティ
+                    {locale === "en" ? "Recent activity" : "最近のアクティビティ"}
                   </h2>
                   <span className="text-xs text-slate-500">
-                    直近8件
+                    {locale === "en" ? "Latest 8" : "直近8件"}
                   </span>
                 </div>
                 <ActivityFeed
@@ -907,23 +1013,27 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
         <div className="max-w-md w-full text-center space-y-4">
           <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-            ダッシュボードを読み込めませんでした
+            {params?.lang === "en"
+              ? "Failed to load the dashboard"
+              : "ダッシュボードを読み込めませんでした"}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            ドキュメントの読み込み中に予期しないエラーが発生しました。ページの再読み込み、またはホーム画面に戻ってやり直してください。
+            {params?.lang === "en"
+              ? "An unexpected error occurred while loading documents. Please reload the page or go back home and try again."
+              : "ドキュメントの読み込み中に予期しないエラーが発生しました。ページの再読み込み、またはホーム画面に戻ってやり直してください。"}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
             <a
-              href="/app"
+              href={params?.lang === "en" ? "/app?lang=en" : "/app"}
               className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-400 transition-colors"
             >
-              再試行する
+              {params?.lang === "en" ? "Retry" : "再試行する"}
             </a>
             <Link
               href="/"
               className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              ホームに戻る
+              {params?.lang === "en" ? "Back to home" : "ホームに戻る"}
             </Link>
           </div>
         </div>
