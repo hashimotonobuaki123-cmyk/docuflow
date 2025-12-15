@@ -383,14 +383,20 @@ export default async function HomeEn() {
               <Link href="/en/pricing" className="text-slate-500 hover:text-white transition-colors">
                 Pricing
               </Link>
-              <Link href="/terms" className="text-slate-500 hover:text-white transition-colors">
+              <Link href="/en/terms" className="text-slate-500 hover:text-white transition-colors">
                 Terms
               </Link>
-              <Link href="/privacy" className="text-slate-500 hover:text-white transition-colors">
+              <Link href="/en/privacy" className="text-slate-500 hover:text-white transition-colors">
                 Privacy
               </Link>
-              <Link href="/support" className="text-slate-500 hover:text-white transition-colors">
+              <Link href="/en/support" className="text-slate-500 hover:text-white transition-colors">
                 Support
+              </Link>
+              <Link href="/en/company" className="text-slate-500 hover:text-white transition-colors">
+                Company
+              </Link>
+              <Link href="/en/legal-notice" className="text-slate-500 hover:text-white transition-colors">
+                Legal
               </Link>
               <Link href="/" className="text-slate-500 hover:text-white transition-colors">
                 Japanese
