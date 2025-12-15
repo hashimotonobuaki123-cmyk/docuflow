@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activityLog";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { getEffectivePlan } from "@/lib/subscription";
 import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
+import { getLocaleFromParam, type Locale } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 import { RegenerateSummaryButton } from "@/components/RegenerateSummaryButton";
 
@@ -33,9 +34,13 @@ type PageProps = {
   params: Promise<{
     id: string;
   }>;
-  searchParams?: Promise<{
-    lang?: string;
-  }>;
+  searchParams?:
+    | {
+        lang?: string;
+      }
+    | Promise<{
+        lang?: string;
+      }>;
 };
 
 type Comment = {
@@ -61,6 +66,7 @@ type DocumentVersion = {
 async function deleteDocument(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
@@ -68,7 +74,7 @@ async function deleteDocument(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   const { error } = await supabase
@@ -79,7 +85,9 @@ async function deleteDocument(formData: FormData) {
 
   if (error) {
     console.error(error);
-    throw new Error("Failed to delete document.");
+    throw new Error(
+      locale === "en" ? "Failed to delete the document." : "削除に失敗しました。",
+    );
   }
 
   await logActivity("delete_document", {
@@ -87,12 +95,13 @@ async function deleteDocument(formData: FormData) {
     documentTitle: title,
   });
 
-  redirect("/");
+  redirect(locale === "en" ? "/app?lang=en" : "/app");
 }
 
 async function toggleArchived(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   const next = String(formData.get("next") ?? "") === "true";
@@ -101,7 +110,7 @@ async function toggleArchived(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   const { error } = await supabase
@@ -112,7 +121,11 @@ async function toggleArchived(formData: FormData) {
 
   if (error) {
     console.error("toggleArchived error:", error);
-    throw new Error("Failed to toggle archived.");
+    throw new Error(
+      locale === "en"
+        ? "Failed to update archive state."
+        : "アーカイブ状態の更新に失敗しました。",
+    );
   }
 
   await logActivity(next ? "archive_document" : "restore_document", {
@@ -126,6 +139,7 @@ async function toggleArchived(formData: FormData) {
 async function enableShare(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
@@ -133,7 +147,7 @@ async function enableShare(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   // ドキュメントの組織スコープを取得して、共有リンク可否をチェック
@@ -148,7 +162,11 @@ async function enableShare(formData: FormData) {
     ?.organization_id ?? null;
   const { plan, limits } = await getEffectivePlan(userId, organizationId);
   if (!limits.shareLinks) {
-    throw new Error("共有リンク機能は現在のプランでは利用できません。");
+    throw new Error(
+      locale === "en"
+        ? "Share links are not available on your current plan."
+        : "共有リンク機能は現在のプランでは利用できません。",
+    );
   }
 
   const token = randomUUID();
@@ -174,7 +192,9 @@ async function enableShare(formData: FormData) {
 
   if (error) {
     console.error(error);
-    throw new Error("Failed to enable share link.");
+    throw new Error(
+      locale === "en" ? "Failed to enable share link." : "共有リンクの発行に失敗しました。",
+    );
   }
 
   await logActivity("enable_share", {
@@ -188,6 +208,7 @@ async function enableShare(formData: FormData) {
 async function disableShare(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
@@ -195,7 +216,7 @@ async function disableShare(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   const { error } = await supabase
@@ -209,7 +230,11 @@ async function disableShare(formData: FormData) {
 
   if (error) {
     console.error(error);
-    throw new Error("Failed to disable share link.");
+    throw new Error(
+      locale === "en"
+        ? "Failed to disable share link."
+        : "共有リンクの停止に失敗しました。",
+    );
   }
 
   await logActivity("disable_share", {
@@ -223,6 +248,7 @@ async function disableShare(formData: FormData) {
 async function regenerateShare(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
   if (!id) return;
@@ -230,7 +256,7 @@ async function regenerateShare(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   // ドキュメントの組織スコープを取得して、共有リンク可否をチェック
@@ -245,7 +271,11 @@ async function regenerateShare(formData: FormData) {
     ?.organization_id ?? null;
   const { plan, limits } = await getEffectivePlan(userId, organizationId);
   if (!limits.shareLinks) {
-    throw new Error("共有リンク機能は現在のプランでは利用できません。");
+    throw new Error(
+      locale === "en"
+        ? "Share links are not available on your current plan."
+        : "共有リンク機能は現在のプランでは利用できません。",
+    );
   }
 
   const token = randomUUID();
@@ -267,7 +297,11 @@ async function regenerateShare(formData: FormData) {
 
   if (error) {
     console.error(error);
-    throw new Error("Failed to regenerate share link.");
+    throw new Error(
+      locale === "en"
+        ? "Failed to regenerate share link."
+        : "共有リンクの再発行に失敗しました。",
+    );
   }
 
   await logActivity("enable_share", {
@@ -282,6 +316,7 @@ async function regenerateShare(formData: FormData) {
 async function addComment(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const documentId = String(formData.get("documentId") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
   if (!documentId || !content) return;
@@ -289,7 +324,7 @@ async function addComment(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   const { data: docMeta } = await supabase
@@ -303,7 +338,11 @@ async function addComment(formData: FormData) {
     ?.organization_id ?? null;
   const { limits } = await getEffectivePlan(userId, organizationId);
   if (!limits.comments) {
-    throw new Error("コメント機能は現在のプランでは利用できません。");
+    throw new Error(
+      locale === "en"
+        ? "Comments are not available on your current plan."
+        : "コメント機能は現在のプランでは利用できません。",
+    );
   }
 
   const { error } = await supabase.from("document_comments").insert({
@@ -314,7 +353,9 @@ async function addComment(formData: FormData) {
 
   if (error) {
     console.error("addComment error:", error);
-    throw new Error("Failed to add comment.");
+    throw new Error(
+      locale === "en" ? "Failed to add the comment." : "コメントの追加に失敗しました。",
+    );
   }
 
   await logActivity("add_comment", {
@@ -328,13 +369,14 @@ async function addComment(formData: FormData) {
 async function regenerateSummary(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   const { data, error } = await supabase
@@ -352,7 +394,7 @@ async function regenerateSummary(formData: FormData) {
   const organizationId =
     (data as { organization_id?: string | null } | null)?.organization_id ?? null;
   // 1回分のAI呼び出しとして消費（要約再生成）
-  await ensureAndConsumeAICalls(userId, organizationId, 1, "ja");
+  await ensureAndConsumeAICalls(userId, organizationId, 1, locale);
 
   const { summary, tags } = await generateSummaryAndTags(data.raw_content);
 
@@ -364,7 +406,11 @@ async function regenerateSummary(formData: FormData) {
 
   if (updateError) {
     console.error("regenerateSummary update error:", updateError);
-    throw new Error("Failed to regenerate summary.");
+    throw new Error(
+      locale === "en"
+        ? "Failed to regenerate the summary."
+        : "要約の再生成に失敗しました。",
+    );
   }
 
   await logActivity("update_document", {
@@ -378,12 +424,23 @@ async function regenerateSummary(formData: FormData) {
 
 export default async function DocumentDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  void searchParams;
+  const sp = searchParams ? await searchParams : undefined;
+  const locale: Locale = getLocaleFromParam(sp?.lang);
+  const withLang = (href: string) => {
+    if (locale !== "en") return href;
+    if (href.includes("lang=en")) return href;
+    if (href.includes("?")) return `${href}&lang=en`;
+    return `${href}?lang=en`;
+  };
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    redirect(`/auth/login?redirectTo=${encodeURIComponent(`/documents/${id}`)}`);
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        withLang(`/documents/${id}`),
+      )}`,
+    );
   }
 
   const { data, error } = await supabase
@@ -468,21 +525,21 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           <div className="flex items-center gap-3">
             <Logo />
             <p className="text-sm text-slate-500">
-              ドキュメント詳細
+              {locale === "en" ? "Document details" : "ドキュメント詳細"}
             </p>
           </div>
           <div className="flex items-center gap-3 text-xs">
             <Link
-              href={`/documents/${doc.id}/edit`}
+              href={withLang(`/documents/${doc.id}/edit`)}
               className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
-              編集
+              {locale === "en" ? "Edit" : "編集"}
             </Link>
             <Link
-              href="/app"
+              href={withLang("/app")}
               className="font-medium text-slate-600 underline-offset-4 hover:underline"
             >
-              一覧に戻る
+              {locale === "en" ? "Back to list" : "一覧に戻る"}
             </Link>
           </div>
         </div>
@@ -506,11 +563,12 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     dateTime={createdAtDisplay ?? undefined}
                     className="text-[11px]"
                   >
-                    {createdAtDisplay ?? "作成日時なし"}
+                    {createdAtDisplay ??
+                      (locale === "en" ? "No created time" : "作成日時なし")}
                   </time>
                   {doc.is_archived && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                      📦 アーカイブ済み
+                      📦 {locale === "en" ? "Archived" : "アーカイブ済み"}
                     </span>
                   )}
                 </div>
@@ -521,16 +579,19 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   action={deleteDocument}
                   className="flex flex-col items-end gap-1"
                 >
+                  <input type="hidden" name="lang" value={locale} />
                   <input type="hidden" name="id" value={doc.id} />
                   <input type="hidden" name="title" value={doc.title} />
                   <button
                     type="submit"
                     className="rounded-md border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100"
                   >
-                    ドキュメントを削除
+                    {locale === "en" ? "Delete document" : "ドキュメントを削除"}
                   </button>
                   <p className="text-[10px] text-slate-400">
-                    削除すると元に戻せません
+                    {locale === "en"
+                      ? "This cannot be undone"
+                      : "削除すると元に戻せません"}
                   </p>
                 </form>
 
@@ -538,6 +599,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   action={toggleArchived}
                   className="flex flex-col items-end gap-1"
                 >
+                  <input type="hidden" name="lang" value={locale} />
                   <input type="hidden" name="id" value={doc.id} />
                   <input type="hidden" name="title" value={doc.title} />
                   <input
@@ -555,14 +617,18 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   >
                     📦{" "}
                     {doc.is_archived
-                      ? "アーカイブを解除"
-                      : "アーカイブ"}
+                      ? locale === "en"
+                        ? "Unarchive"
+                        : "アーカイブを解除"
+                      : locale === "en"
+                        ? "Archive"
+                        : "アーカイブ"}
                   </button>
                 </form>
 
                 <div className="flex flex-col items-end gap-1 text-[11px] text-slate-600">
                   <p className="text-[10px] font-semibold text-slate-500">
-                    共有リンク
+                    {locale === "en" ? "Share link" : "共有リンク"}
                   </p>
                   {doc.share_token ? (
                     <>
@@ -571,41 +637,50 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                       </p>
                     <p className="text-[10px] text-slate-500">
                       {doc.share_expires_at
-                        ? `期限: ${formatJstDateTime(doc.share_expires_at) ?? doc.share_expires_at}`
-                        : "期限: なし"}
+                        ? locale === "en"
+                          ? `Expires: ${formatJstDateTime(doc.share_expires_at) ?? doc.share_expires_at}`
+                          : `期限: ${formatJstDateTime(doc.share_expires_at) ?? doc.share_expires_at}`
+                        : locale === "en"
+                          ? "Expires: none"
+                          : "期限: なし"}
                     </p>
                     <div className="flex items-center gap-2">
                       <form action={regenerateShare}>
+                        <input type="hidden" name="lang" value={locale} />
                         <input type="hidden" name="id" value={doc.id} />
                         <input type="hidden" name="title" value={doc.title} />
                         <button
                           type="submit"
                           className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                         >
-                          再発行
+                          {locale === "en" ? "Regenerate" : "再発行"}
                         </button>
                       </form>
                       <form action={disableShare}>
+                        <input type="hidden" name="lang" value={locale} />
                         <input type="hidden" name="id" value={doc.id} />
                         <input type="hidden" name="title" value={doc.title} />
                         <button
                           type="submit"
                           className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                         >
-                          共有を停止
+                          {locale === "en" ? "Disable" : "共有を停止"}
                         </button>
                       </form>
                     </div>
                     </>
                   ) : (
                     <form action={enableShare}>
+                      <input type="hidden" name="lang" value={locale} />
                       <input type="hidden" name="id" value={doc.id} />
                       <input type="hidden" name="title" value={doc.title} />
                       <button
                         type="submit"
                         className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                       >
-                        共有リンクを発行
+                        {locale === "en"
+                          ? "Enable share link"
+                          : "共有リンクを発行"}
                       </button>
                     </form>
                   )}
@@ -617,62 +692,73 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             <div className="grid gap-3 text-[11px] text-slate-600 md:grid-cols-3">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                 <p className="font-semibold text-slate-700">
-                  ドキュメント情報
+                  {locale === "en" ? "Document info" : "ドキュメント情報"}
                 </p>
                 <p className="mt-1 text-[11px]">
-                  作成日時:{" "}
+                  {locale === "en" ? "Created:" : "作成日時:"}{" "}
                   <span className="font-medium">
-                    {createdAtDisplay ?? "作成日時なし"}
+                    {createdAtDisplay ??
+                      (locale === "en" ? "No created time" : "作成日時なし")}
                   </span>
                 </p>
                 {doc.category && (
                   <p className="mt-1">
-                    カテゴリ:{" "}
+                    {locale === "en" ? "Category:" : "カテゴリ:"}{" "}
                     <span className="font-medium">{doc.category}</span>
                   </p>
                 )}
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                 <p className="font-semibold text-slate-700">
-                  ボリューム
+                  {locale === "en" ? "Volume" : "ボリューム"}
                 </p>
                 <p className="mt-1">
-                  文字数:{" "}
+                  {locale === "en" ? "Chars:" : "文字数:"}{" "}
                   <span className="font-medium">
-                    {`${charCount.toLocaleString("ja-JP")} 文字`}
+                    {locale === "en"
+                      ? `${charCount.toLocaleString("en-US")} chars`
+                      : `${charCount.toLocaleString("ja-JP")} 文字`}
                   </span>
                 </p>
                 <p className="mt-1">
-                  行数:{" "}
+                  {locale === "en" ? "Lines:" : "行数:"}{" "}
                   <span className="font-medium">
-                    {`${lineCount} 行`}
+                    {locale === "en" ? `${lineCount} lines` : `${lineCount} 行`}
                   </span>
                 </p>
                 {approxMinutes && (
                   <p className="mt-1">
-                    読了目安:{" "}
+                    {locale === "en" ? "Read time:" : "読了目安:"}{" "}
                     <span className="font-medium">
-                      {`${approxMinutes} 分程度`}
+                      {locale === "en"
+                        ? `~${approxMinutes} min`
+                        : `${approxMinutes} 分程度`}
                     </span>
                   </p>
                 )}
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                 <p className="font-semibold text-slate-700">
-                  タグ / 共有
+                  {locale === "en" ? "Tags / Share" : "タグ / 共有"}
                 </p>
                 <p className="mt-1">
-                  タグ数:{" "}
+                  {locale === "en" ? "Tags:" : "タグ数:"}{" "}
                   <span className="font-medium">
-                    {`${tags.length.toLocaleString("ja-JP")} 個`}
+                    {locale === "en"
+                      ? `${tags.length.toLocaleString("en-US")}`
+                      : `${tags.length.toLocaleString("ja-JP")} 個`}
                   </span>
                 </p>
                 <p className="mt-1">
-                  共有リンク:{" "}
+                  {locale === "en" ? "Share link:" : "共有リンク:"}{" "}
                   <span className="font-medium">
                     {doc.share_token
-                      ? "有効"
-                      : "未発行"}
+                      ? locale === "en"
+                        ? "Enabled"
+                        : "有効"
+                      : locale === "en"
+                        ? "Disabled"
+                        : "未発行"}
                   </span>
                 </p>
               </div>
@@ -684,7 +770,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 {tags.map((tag) => (
                   <Link
                     key={tag}
-                    href={`/app?q=${encodeURIComponent(tag)}`}
+                    href={withLang(`/app?q=${encodeURIComponent(tag)}`)}
                     className="inline-flex items-center rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
                   >
                     {tag}
@@ -702,10 +788,11 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white">
                       AI
                     </span>
-                    AI 要約
+                    {locale === "en" ? "AI summary" : "AI 要約"}
                   </h3>
                 </div>
                 <form action={regenerateSummary}>
+                  <input type="hidden" name="lang" value={locale} />
                   <input type="hidden" name="id" value={doc.id} />
                   <RegenerateSummaryButton />
                 </form>
@@ -719,7 +806,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           {doc.raw_content && (
             <section className="space-y-2">
               <h3 className="text-xs font-semibold text-slate-700">
-                本文
+                {locale === "en" ? "Content" : "本文"}
               </h3>
               <div className="rounded-md border border-slate-100 bg-slate-50 p-4">
                 <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800">
@@ -732,11 +819,13 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           {/* コメント */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold text-slate-700">
-              コメント
+              {locale === "en" ? "Comments" : "コメント"}
             </h3>
             {comments.length === 0 ? (
               <p className="text-[11px] text-slate-500">
-                まだコメントはありません。気づきや TODO をメモしておくのに使えます。
+                {locale === "en"
+                  ? "No comments yet. Use this as a place to leave notes or TODOs."
+                  : "まだコメントはありません。気づきや TODO をメモしておくのに使えます。"}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -752,7 +841,9 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                       dateTime={comment.created_at}
                       className="mt-1 block text-[10px] text-slate-400"
                     >
-                      {new Date(comment.created_at).toLocaleString("ja-JP")}
+                      {new Date(comment.created_at).toLocaleString(
+                        locale === "en" ? "en-US" : "ja-JP",
+                      )}
                     </time>
                   </li>
                 ))}
@@ -760,12 +851,15 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             )}
 
             <form action={addComment} className="space-y-2">
+              <input type="hidden" name="lang" value={locale} />
               <input type="hidden" name="documentId" value={doc.id} />
               <textarea
                 name="content"
                 rows={3}
                 placeholder={
-                  "このドキュメントに関するメモや TODO を自由に書いてください。"
+                  locale === "en"
+                    ? "Write notes or TODOs about this document..."
+                    : "このドキュメントに関するメモや TODO を自由に書いてください。"
                 }
                 className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none ring-emerald-500/20 focus:bg-white focus:ring"
               />
@@ -774,7 +868,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   type="submit"
                   className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-800"
                 >
-                  コメントを追加
+                  {locale === "en" ? "Add comment" : "コメントを追加"}
                 </button>
               </div>
             </form>
@@ -784,10 +878,12 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           {versions.length > 0 && (
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-slate-700">
-                バージョン履歴
+                {locale === "en" ? "Version history" : "バージョン履歴"}
               </h3>
               <p className="text-[11px] text-slate-500">
-                編集保存のたびに、変更前の内容を履歴として保存しています。クリックすると詳細・比較画面を開きます。
+                {locale === "en"
+                  ? "A snapshot is stored on each save. Open to view details and compare."
+                  : "編集保存のたびに、変更前の内容を履歴として保存しています。クリックすると詳細・比較画面を開きます。"}
               </p>
               <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 bg-slate-50">
                 {versions.map((v) => (
@@ -798,17 +894,17 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                     <div className="flex flex-col">
                       <span className="font-medium text-slate-800">
                         {v.title ||
-                          "（タイトルなし）"}
+                          (locale === "en" ? "(No title)" : "（タイトルなし）")}
                       </span>
                       <span className="text-[10px] text-slate-500">
                         {formatJstDateTime(v.created_at) ?? v.created_at}
                       </span>
                     </div>
                     <Link
-                      href={`/documents/${doc.id}/versions/${v.id}`}
+                      href={withLang(`/documents/${doc.id}/versions/${v.id}`)}
                       className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[10px] font-medium text-slate-700 hover:bg-slate-100"
                     >
-                      比較表示
+                      {locale === "en" ? "Compare" : "比較表示"}
                     </Link>
                   </li>
                 ))}

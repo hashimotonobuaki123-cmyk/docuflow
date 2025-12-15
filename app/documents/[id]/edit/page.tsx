@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activityLog";
 import { getEffectivePlan } from "@/lib/subscription";
 import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { canUseStorage } from "@/lib/subscriptionUsage";
+import { getLocaleFromParam, type Locale } from "@/lib/i18n";
 
 const BYTES_PER_MB = 1024 * 1024;
 
@@ -13,14 +14,19 @@ type PageProps = {
   params: {
     id: string;
   };
-  searchParams?: {
-    lang?: string;
-  };
+  searchParams?:
+    | {
+        lang?: string;
+      }
+    | Promise<{
+        lang?: string;
+      }>;
 };
 
 async function updateDocument(formData: FormData) {
   "use server";
 
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
   const id = String(formData.get("id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
@@ -33,7 +39,7 @@ async function updateDocument(formData: FormData) {
   const cookieStore = await cookies();
   const cookieUserId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!cookieUserId) {
-    throw new Error("ログインしてください。");
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
   }
 
   // 現在のドキュメントを取得（スコープ判定 / 上限チェック / バージョン保存に使用）
@@ -46,7 +52,9 @@ async function updateDocument(formData: FormData) {
 
   if (currentError || !current) {
     console.error("[updateDocument] failed to fetch current doc:", currentError);
-    throw new Error("ドキュメントが見つかりません。");
+    throw new Error(
+      locale === "en" ? "Document not found." : "ドキュメントが見つかりません。",
+    );
   }
 
   const currentDoc = current as {
@@ -69,7 +77,7 @@ async function updateDocument(formData: FormData) {
       cookieUserId,
       currentDoc.organization_id ?? null,
       additionalMB,
-      "ja",
+      locale,
     );
     if (!storageCheck.allowed) {
       throw new Error(storageCheck.reason || "Storage limit exceeded");
@@ -103,7 +111,7 @@ async function updateDocument(formData: FormData) {
 
   // 編集時の要約再生成はAI呼び出しとして消費（ドキュメントの組織スコープに紐づける）
   const orgId = currentDoc.organization_id ?? null;
-  await ensureAndConsumeAICalls(cookieUserId, orgId, 1, "ja");
+  await ensureAndConsumeAICalls(cookieUserId, orgId, 1, locale);
 
   const { summary, tags } = await generateSummaryAndTags(rawContent);
 
@@ -111,7 +119,7 @@ async function updateDocument(formData: FormData) {
     .from("documents")
     .update({
       title,
-      category: category || "未分類",
+      category: category || (locale === "en" ? "Uncategorized" : "未分類"),
       raw_content: rawContent,
       summary,
       tags,
@@ -121,7 +129,11 @@ async function updateDocument(formData: FormData) {
 
   if (error) {
     console.error(error);
-    throw new Error("Failed to update document.");
+    throw new Error(
+      locale === "en"
+        ? "Failed to update the document."
+        : "ドキュメントの更新に失敗しました。",
+    );
   }
 
   await logActivity("update_document", {
@@ -129,17 +141,28 @@ async function updateDocument(formData: FormData) {
     documentTitle: title,
   });
 
-  redirect(`/documents/${id}`);
+  redirect(locale === "en" ? `/documents/${id}?lang=en` : `/documents/${id}`);
 }
 
 export default async function EditDocumentPage({ params, searchParams }: PageProps) {
   const { id } = params;
-  void searchParams;
+  const sp = searchParams ? await searchParams : undefined;
+  const locale: Locale = getLocaleFromParam(sp?.lang);
+  const withLang = (href: string) => {
+    if (locale !== "en") return href;
+    if (href.includes("lang=en")) return href;
+    if (href.includes("?")) return `${href}&lang=en`;
+    return `${href}?lang=en`;
+  };
 
   const cookieStore = await cookies();
   const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
   if (!userId) {
-    redirect(`/auth/login?redirectTo=${encodeURIComponent(`/documents/${id}/edit`)}`);
+    redirect(
+      `/auth/login?redirectTo=${encodeURIComponent(
+        withLang(`/documents/${id}/edit`),
+      )}`,
+    );
   }
 
   const { data, error } = await supabase
@@ -151,7 +174,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
 
   if (error || !data) {
     console.error(error);
-    redirect("/");
+    redirect(withLang("/app"));
   }
 
   const doc = data as {
@@ -170,8 +193,16 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
               DocuFlow
             </h1>
             <p className="text-sm text-slate-500">
-              ドキュメント編集
+              {locale === "en" ? "Edit document" : "ドキュメント編集"}
             </p>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <a
+              href={withLang(`/documents/${id}`)}
+              className="font-medium text-slate-600 underline-offset-4 hover:underline"
+            >
+              {locale === "en" ? "Back" : "戻る"}
+            </a>
           </div>
         </div>
       </header>
@@ -179,9 +210,10 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
       <main className="mx-auto max-w-4xl px-4 py-8">
         <section className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-base font-semibold text-slate-800">
-            ドキュメント情報を編集
+            {locale === "en" ? "Edit document details" : "ドキュメント情報を編集"}
           </h2>
           <form action={updateDocument} className="space-y-4">
+            <input type="hidden" name="lang" value={locale} />
             <input type="hidden" name="id" value={doc.id} />
 
             <div>
@@ -189,7 +221,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
                 htmlFor="title"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                タイトル{" "}
+                {locale === "en" ? "Title" : "タイトル"}{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
@@ -206,7 +238,7 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
                 htmlFor="category"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                カテゴリ
+                {locale === "en" ? "Category" : "カテゴリ"}
               </label>
               <input
                 id="category"
@@ -221,11 +253,13 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
                 htmlFor="rawContent"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                本文{" "}
+                {locale === "en" ? "Content" : "本文"}{" "}
                 <span className="text-red-500">*</span>
               </label>
               <p className="mb-2 text-xs text-slate-500">
-                編集後の本文をもとに、要約とタグを再生成します。
+                {locale === "en"
+                  ? "A new summary and tags will be generated from the updated content."
+                  : "編集後の本文をもとに、要約とタグを再生成します。"}
               </p>
               <textarea
                 id="rawContent"
@@ -239,13 +273,17 @@ export default async function EditDocumentPage({ params, searchParams }: PagePro
 
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-slate-500">
-                保存すると、AI による要約とタグも更新されます。
+                {locale === "en"
+                  ? "Saving will also update the AI summary and tags."
+                  : "保存すると、AI による要約とタグも更新されます。"}
               </p>
               <button
                 type="submit"
                 className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-800"
               >
-                更新して再要約
+                {locale === "en"
+                  ? "Update & re-summarize"
+                  : "更新して再要約"}
               </button>
             </div>
           </form>
