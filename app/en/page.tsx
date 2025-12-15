@@ -168,7 +168,7 @@ export default async function HomeEn() {
             </p>
 
             <p className="mt-4 text-sm text-slate-500 max-w-2xl mx-auto">
-              Built with Next.js + Supabase + Stripe + Sentry. Designed to demonstrate “production details”, not just UI.
+              Built with Next.js + Supabase + Stripe + Sentry. Focused on “production details”, not just UI.
             </p>
 
             <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">

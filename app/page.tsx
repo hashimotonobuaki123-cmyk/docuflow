@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
@@ -25,10 +24,6 @@ import {
 export default async function Home() {
   const cookieStore = await cookies();
   const isAuthed = cookieStore.get("docuhub_ai_auth")?.value === "1";
-
-  if (isAuthed) {
-    redirect("/app");
-  }
 
   // LPの価格表示も Stripe の Price を正とする（表示と請求のズレを防ぐ）
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
@@ -138,18 +133,29 @@ export default async function Home() {
               </a>
             </nav>
             <div className="flex items-center gap-3">
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-4 py-2"
-              >
-                ログイン
-              </Link>
-              <Link
-                href="/auth/signup"
-                className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-emerald-500/25"
-              >
-                14日間無料で試す
-              </Link>
+              {isAuthed ? (
+                <Link
+                  href="/app"
+                  className="text-sm font-semibold bg-white text-slate-900 px-5 py-2.5 rounded-full transition-all hover:bg-white/90"
+                >
+                  アプリを開く
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-4 py-2"
+                  >
+                    ログイン
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-emerald-500/25"
+                  >
+                    14日間無料で試す
+                  </Link>
+                </>
+              )}
               <Link
                 href="/en"
                 className="text-[11px] font-medium text-slate-500 hover:text-slate-300 transition-colors border border-slate-700 rounded-full px-2 py-0.5"
@@ -198,7 +204,7 @@ export default async function Home() {
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href="/demo/en"
+                href="/demo"
                 className="inline-flex items-center gap-2 text-slate-300 hover:text-white font-medium px-8 py-4 rounded-full border border-slate-700 hover:border-slate-500 transition-all"
               >
                 <span>デモを見る</span>
@@ -258,6 +264,71 @@ export default async function Home() {
                   {company}
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="mx-auto max-w-7xl px-4 pb-20">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 border border-sky-500/20 px-4 py-2 text-sm font-medium text-sky-300 mb-4">
+                <span>使い方</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold">
+                アップロードから検索まで、3ステップ
+              </h2>
+              <p className="mt-3 text-slate-400">
+                チーム運用を前提に「取り込み → 整理 → 安全に共有」までを最短に。
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              {[
+                {
+                  step: "1",
+                  title: "アップロードして整理",
+                  body: "PDF/Wordを入れるだけ。ストレージ上限は実コンテンツサイズで厳格に判定し、黙って超過しない設計。",
+                },
+                {
+                  step: "2",
+                  title: "AIで要約・タグ付け",
+                  body: "要約/検索などAI機能はすべてサーバー側で使用回数を消費（抜け道なし）。",
+                },
+                {
+                  step: "3",
+                  title: "検索・共有を安全に",
+                  body: "共有リンクはプランに応じて期限付き。危険操作は監査ログとSentryタグで追跡可能。",
+                },
+              ].map((s) => (
+                <div
+                  key={s.step}
+                  className="rounded-2xl border border-white/5 bg-slate-900/50 p-6"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-sm font-bold text-white">
+                      {s.step}
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">{s.title}</h3>
+                  </div>
+                  <p className="mt-3 text-slate-400">{s.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href={isAuthed ? "/app" : "/auth/signup"}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 hover:bg-white/90"
+              >
+                {isAuthed ? "アプリを開く" : "無料で始める"} <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-7 py-3 text-sm font-medium text-white hover:bg-white/10"
+              >
+                料金を見る
+              </Link>
             </div>
           </div>
         </section>
@@ -708,7 +779,7 @@ export default async function Home() {
                 <ul className="space-y-2">
                   <li><a href="#features" className="text-sm text-slate-500 hover:text-white transition-colors">機能</a></li>
                   <li><Link href="/pricing" className="text-sm text-slate-500 hover:text-white transition-colors">料金</Link></li>
-                  <li><Link href="/demo/en" className="text-sm text-slate-500 hover:text-white transition-colors">デモ</Link></li>
+                  <li><Link href="/demo" className="text-sm text-slate-500 hover:text-white transition-colors">デモ</Link></li>
                 </ul>
               </div>
               <div>

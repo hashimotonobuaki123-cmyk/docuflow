@@ -253,7 +253,7 @@ export function SubscriptionPlans({
               </div>
             ) : isEnterprise ? (
               <a
-                href="mailto:sales@docuflow.com"
+                href="mailto:sales@docuflow.io"
                 className="block rounded-lg bg-slate-900 px-3 py-2 text-center text-xs font-medium text-white hover:bg-slate-800"
               >
                 {"営業に問い合わせ"}
