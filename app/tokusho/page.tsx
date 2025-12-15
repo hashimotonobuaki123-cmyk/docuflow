@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "特定商取引法に基づく表記 | DocuFlow",
   description: "特定商取引法に基づく表記です。",
   alternates: { canonical: "/tokusho" },
+  robots: { index: false, follow: false },
 };
 
 export default function TokushoPage() {
@@ -13,26 +14,27 @@ export default function TokushoPage() {
       title="特定商取引法に基づく表記"
       description="（オンラインサービス向け）特定商取引法に基づく表記です。実運用前に必ず貴社情報へ置き換えてください。"
     >
-      <div className="text-slate-300">
-        <p className="mb-4">
-          ※ 以下は雛形です。住所/代表者/電話番号/販売価格/返金条件など、貴社の実態に合わせて更新してください。
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-slate-200">
+        <p className="text-sm font-semibold">これはポートフォリオ用の雛形です（未確定情報）</p>
+        <p className="mt-2 text-sm">
+          ここに書かれている内容は、実際の販売者情報としては使えません。実運用で公開する場合は、実情報に差し替えてください。
         </p>
       </div>
 
       <h2>販売事業者</h2>
-      <p>DocuFlow（運営者名を記載）</p>
+      <p>（ここに販売事業者名を記載）</p>
 
       <h2>運営責任者</h2>
-      <p>（氏名を記載）</p>
+      <p>（ここに運営責任者名を記載）</p>
 
       <h2>所在地</h2>
-      <p>（住所を記載）</p>
+      <p>（ここに所在地を記載）</p>
 
       <h2>お問い合わせ</h2>
       <p>
         メール: <a href="mailto:contact@docuflow.io">contact@docuflow.io</a>
         <br />
-        電話番号: （電話番号を記載。請求があれば遅滞なく開示する旨の記載でも可）
+        電話番号: （ここに電話番号を記載。公開したくない場合は、適法な範囲での代替手段を検討してください）
       </p>
 
       <h2>販売価格</h2>
