@@ -221,6 +221,71 @@ export default async function HomeEn() {
           </div>
         </section>
 
+        {/* How it works */}
+        <section className="mx-auto max-w-7xl px-4 pb-20">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 border border-sky-500/20 px-4 py-2 text-sm font-medium text-sky-300 mb-4">
+                <span>How it works</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold">
+                From upload to answers — in 3 steps
+              </h2>
+              <p className="mt-3 text-slate-400">
+                A simple workflow designed for teams: ingest, enrich, and search — with guardrails.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              {[
+                {
+                  step: "1",
+                  title: "Upload & organize",
+                  body: "Drop PDFs/Docs. Storage limits are enforced by actual content size to prevent silent overages.",
+                },
+                {
+                  step: "2",
+                  title: "AI summarize & tag",
+                  body: "Generate summaries and metadata with quota enforcement on every AI feature — no bypass paths.",
+                },
+                {
+                  step: "3",
+                  title: "Search & share safely",
+                  body: "Find docs instantly, share with expiring links, and audit critical actions (org ops, sharing, billing).",
+                },
+              ].map((s) => (
+                <div
+                  key={s.step}
+                  className="rounded-2xl border border-white/5 bg-slate-900/50 p-6"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-sm font-bold text-white">
+                      {s.step}
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">{s.title}</h3>
+                  </div>
+                  <p className="mt-3 text-slate-400">{s.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 hover:bg-white/90"
+              >
+                Start free trial <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/en/pricing"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-7 py-3 text-sm font-medium text-white hover:bg-white/10"
+              >
+                See pricing
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-7xl px-4 pb-20" id="value">
           <div className="grid md:grid-cols-3 gap-6">
             {[

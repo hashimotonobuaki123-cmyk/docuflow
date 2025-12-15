@@ -82,7 +82,7 @@ export default async function PricingEnPage() {
   return (
     <MarketingSimpleLayoutEn
       title="Pricing"
-      description="Simple plans with a free trial. Prices are fetched from Stripe when available (best-effort)."
+      description="Straightforward plans for individuals and teams. Prices are fetched from Stripe when available (best-effort)."
     >
       <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-violet-500/10 border border-violet-500/20 px-4 py-2 text-xs font-medium text-violet-300">
         <BarChart3 className="h-4 w-4" />
@@ -97,7 +97,12 @@ export default async function PricingEnPage() {
             <span className="text-slate-500">/month</span>
           </div>
           <ul className="mt-4 space-y-2 text-sm text-slate-300">
-            {["Up to 50 documents", "100MB storage", "100 AI summaries / month"].map((f) => (
+            {[
+              "Up to 50 documents",
+              "100MB storage",
+              "100 AI actions / month",
+              "Secure share links (expiring)",
+            ].map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-400" />
                 <span>{f}</span>
@@ -122,7 +127,13 @@ export default async function PricingEnPage() {
             <span className="text-slate-500">{prices.pro?.recurringLabel ?? "/month"}</span>
           </div>
           <ul className="mt-4 space-y-2 text-sm text-slate-200">
-            {["1,000 documents", "5GB storage", "5,000 AI summaries / month", "Priority support"].map((f) => (
+            {[
+              "1,000 documents",
+              "5GB storage",
+              "5,000 AI actions / month",
+              "Version history",
+              "Priority support",
+            ].map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-400" />
                 <span>{f}</span>
@@ -145,7 +156,14 @@ export default async function PricingEnPage() {
             <span className="text-slate-500">{prices.team?.recurringLabel ?? "/month"}</span>
           </div>
           <ul className="mt-4 space-y-2 text-sm text-slate-300">
-            {["10,000 documents", "50GB storage", "50,000 AI summaries / month", "Up to 10 seats"].map((f) => (
+            {[
+              "10,000 documents",
+              "50GB storage",
+              "50,000 AI actions / month",
+              "Up to 10 seats",
+              "Org RBAC (Owner/Admin/Member)",
+              "Audit logs for critical actions",
+            ].map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-400" />
                 <span>{f}</span>
@@ -164,7 +182,13 @@ export default async function PricingEnPage() {
           <div className="text-sm font-medium text-violet-300">Enterprise</div>
           <div className="mt-2 text-2xl font-bold">Contact</div>
           <ul className="mt-4 space-y-2 text-sm text-slate-300">
-            {["Unlimited docs", "Unlimited storage", "Unlimited AI usage", "SSO / SLA"].map((f) => (
+            {[
+              "Unlimited docs",
+              "Unlimited storage",
+              "Unlimited AI usage",
+              "SSO / SLA",
+              "Custom retention & compliance",
+            ].map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-400" />
                 <span>{f}</span>
