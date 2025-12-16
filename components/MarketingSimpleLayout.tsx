@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { getPreferredLocale } from "@/lib/serverLocale";
 
 type Props = {
   title: string;
@@ -7,7 +8,10 @@ type Props = {
   children: React.ReactNode;
 };
 
-export function MarketingSimpleLayout({ title, description, children }: Props) {
+export async function MarketingSimpleLayout({ title, description, children }: Props) {
+  const locale = await getPreferredLocale();
+  const loginHref = locale === "en" ? "/en/auth/login" : "/auth/login";
+  const signupHref = locale === "en" ? "/en/auth/signup" : "/auth/signup";
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -23,13 +27,13 @@ export function MarketingSimpleLayout({ title, description, children }: Props) {
             </Link>
             <div className="flex items-center gap-3">
               <Link
-                href="/auth/login"
+                href={loginHref}
                 className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-3 py-2"
               >
                 ログイン
               </Link>
               <Link
-                href="/auth/signup"
+                href={signupHref}
                 className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-emerald-500/25"
               >
                 14日間無料で試す

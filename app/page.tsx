@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Logo } from "@/components/Logo";
 import { MarketingLocaleLink } from "@/components/MarketingLocaleLink";
+import { getPreferredLocale } from "@/lib/serverLocale";
 import {
   Check,
   Zap,
@@ -25,6 +26,9 @@ import {
 export default async function Home() {
   const cookieStore = await cookies();
   const isAuthed = cookieStore.get("docuhub_ai_auth")?.value === "1";
+  const preferredLocale = await getPreferredLocale();
+  const loginHref = preferredLocale === "en" ? "/en/auth/login" : "/auth/login";
+  const signupHref = preferredLocale === "en" ? "/en/auth/signup" : "/auth/signup";
 
   // LPの価格表示も Stripe の Price を正とする（表示と請求のズレを防ぐ）
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
@@ -144,13 +148,13 @@ export default async function Home() {
               ) : (
                 <>
                   <Link
-                    href="/auth/login"
+                    href={loginHref}
                     className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-4 py-2"
                   >
                     ログイン
                   </Link>
                   <Link
-                    href="/auth/signup"
+                    href={signupHref}
                     className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-emerald-500/25"
                   >
                     14日間無料で試す
@@ -199,7 +203,7 @@ export default async function Home() {
             {/* CTA Buttons */}
             <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/auth/signup"
+                href={signupHref}
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-white font-semibold px-8 py-4 rounded-full text-lg transition-all hover:shadow-2xl hover:shadow-emerald-500/25 hover:-translate-y-0.5"
               >
                 <span>14日間無料トライアル</span>
@@ -471,7 +475,7 @@ export default async function Home() {
                 ))}
               </ul>
               <Link
-                href="/auth/signup"
+                href={signupHref}
                 className="block text-center py-3 rounded-full border border-white/10 text-white font-medium hover:bg-white/5 transition-all"
               >
                 無料で始める
@@ -749,7 +753,7 @@ export default async function Home() {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
-                  href="/auth/signup"
+                  href={signupHref}
                   className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 text-lg font-semibold text-slate-900 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5"
                 >
                   <span>14日間無料で始める</span>
