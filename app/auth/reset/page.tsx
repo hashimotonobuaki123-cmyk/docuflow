@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
+import { useLocale } from "@/lib/useLocale";
 
 export default function ResetPasswordPage() {
+  const locale = useLocale();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -147,7 +149,7 @@ export default function ResetPasswordPage() {
           </form>
 
           <Link
-            href="/auth/login"
+            href={locale === "en" ? "/en/auth/login" : "/auth/login"}
             className="mt-2 block text-center text-[11px] font-medium text-slate-500 underline-offset-4 hover:text-slate-700 hover:underline"
           >
             ログイン画面に戻る

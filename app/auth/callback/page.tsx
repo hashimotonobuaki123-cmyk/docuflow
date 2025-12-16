@@ -3,10 +3,12 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
+import { useLocale } from "@/lib/useLocale";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const locale = useLocale();
 
   const redirectTo = searchParams.get("redirectTo") || "";
 
@@ -20,7 +22,8 @@ export default function AuthCallbackPage() {
 
         if (error || !data.user) {
           console.error("Failed to fetch user after OAuth callback:", error);
-          router.replace("/auth/login?error=oauth_callback");
+          const loginPath = locale === "en" ? "/en/auth/login" : "/auth/login";
+          router.replace(`${loginPath}?error=oauth_callback`);
           return;
         }
 
@@ -30,11 +33,13 @@ export default function AuthCallbackPage() {
         document.cookie = "docuhub_ai_auth=1; path=/;";
         document.cookie = `docuhub_ai_user_id=${userId}; path=/;`;
 
-        const finalRedirect = redirectTo || "/app";
+        const defaultRedirect = locale === "en" ? "/app?lang=en" : "/app";
+        const finalRedirect = redirectTo || defaultRedirect;
         router.replace(finalRedirect);
       } catch (e) {
         console.error("Unexpected error in OAuth callback:", e);
-        router.replace("/auth/login?error=oauth_callback");
+        const loginPath = locale === "en" ? "/en/auth/login" : "/auth/login";
+        router.replace(`${loginPath}?error=oauth_callback`);
       }
     }
 
@@ -43,7 +48,7 @@ export default function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [router, redirectTo]);
+  }, [router, redirectTo, locale]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">

@@ -5,8 +5,10 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 import { Logo } from "@/components/Logo";
 import { getSiteUrl } from "@/lib/getSiteUrl";
+import { useLocale } from "@/lib/useLocale";
 
 export default function ForgotPasswordPage() {
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,8 @@ export default function ForgotPasswordPage() {
     // 環境変数 NEXT_PUBLIC_SITE_URL が設定されていればそれを使用
     // なければ、実行時に判定（localhost以外は本番URL）
     const siteUrl = getSiteUrl();
-    const redirectUrl = `${siteUrl}/auth/reset`;
+    const resetPath = locale === "en" ? "/en/auth/reset" : "/auth/reset";
+    const redirectUrl = `${siteUrl}${resetPath}`;
 
     console.log("[Password Reset] Using redirect URL:", redirectUrl);
 
@@ -62,7 +65,7 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
           <Link
-            href="/auth/login"
+            href={locale === "en" ? "/en/auth/login" : "/auth/login"}
             className="text-xs font-medium text-slate-600 underline-offset-4 hover:underline"
           >
             ログインへ戻る
