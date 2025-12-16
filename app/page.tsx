@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import { Logo } from "@/components/Logo";
+import { MarketingLocaleLink } from "@/components/MarketingLocaleLink";
 import {
   Check,
   Zap,
@@ -156,12 +157,13 @@ export default async function Home() {
                   </Link>
                 </>
               )}
-              <Link
+              <MarketingLocaleLink
                 href="/en"
+                locale="en"
                 className="text-[11px] font-medium text-slate-500 hover:text-slate-300 transition-colors border border-slate-700 rounded-full px-2 py-0.5"
               >
                 EN
-              </Link>
+              </MarketingLocaleLink>
             </div>
           </div>
         </header>
@@ -804,9 +806,13 @@ export default async function Home() {
                 © 2024 DocuFlow. All rights reserved.
               </p>
               <div className="flex items-center gap-4">
-                <Link href="/en" className="text-sm text-slate-500 hover:text-white transition-colors">
+                <MarketingLocaleLink
+                  href="/en"
+                  locale="en"
+                  className="text-sm text-slate-500 hover:text-white transition-colors"
+                >
                   English
-                </Link>
+                </MarketingLocaleLink>
               </div>
             </div>
           </div>

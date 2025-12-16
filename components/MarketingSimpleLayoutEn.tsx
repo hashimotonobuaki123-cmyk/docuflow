@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { MarketingLocaleLink } from "@/components/MarketingLocaleLink";
 
 type Props = {
   title: string;
@@ -34,12 +35,13 @@ export function MarketingSimpleLayoutEn({ title, description, children }: Props)
               >
                 Start free trial
               </Link>
-              <Link
+              <MarketingLocaleLink
                 href="/"
+                locale="ja"
                 className="text-[11px] font-medium text-slate-500 hover:text-slate-300 transition-colors border border-slate-700 rounded-full px-2 py-0.5"
               >
                 JP
-              </Link>
+              </MarketingLocaleLink>
             </div>
           </div>
         </header>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
 import { Logo } from "@/components/Logo";
+import { MarketingLocaleLink } from "@/components/MarketingLocaleLink";
 import { Check, ArrowRight, Sparkles, Shield, BarChart3 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -135,12 +136,13 @@ export default async function HomeEn() {
                   </Link>
                 </>
               )}
-              <Link
+              <MarketingLocaleLink
                 href="/"
+                locale="ja"
                 className="text-[11px] font-medium text-slate-500 hover:text-slate-300 transition-colors border border-slate-700 rounded-full px-2 py-0.5"
               >
                 JP
-              </Link>
+              </MarketingLocaleLink>
             </div>
           </div>
         </header>
@@ -475,9 +477,13 @@ export default async function HomeEn() {
               <Link href="/en/legal-notice" className="text-slate-500 hover:text-white transition-colors">
                 Legal
               </Link>
-              <Link href="/" className="text-slate-500 hover:text-white transition-colors">
+              <MarketingLocaleLink
+                href="/"
+                locale="ja"
+                className="text-slate-500 hover:text-white transition-colors"
+              >
                 Japanese
-              </Link>
+              </MarketingLocaleLink>
             </div>
           </div>
         </footer>
