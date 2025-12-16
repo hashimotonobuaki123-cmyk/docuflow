@@ -9,6 +9,7 @@ import {
   createOrganization,
   getOrganizationMembers,
   getUserRoleInOrganization,
+  setActiveOrganization,
   createInvitation,
   removeOrganizationMember,
   updateOrganizationMemberRole,
@@ -82,14 +83,8 @@ async function createOrgAction(formData: FormData) {
   }
 
   if (organization) {
-    // アクティブ組織をCookieに設定
-    cookieStore.set("docuflow_active_org", organization.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-    });
+    // アクティブ組織をCookieに設定（所属チェック込み）
+    await setActiveOrganization(userId, organization.id);
   }
 
   revalidatePath("/settings/organizations");

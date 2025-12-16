@@ -384,7 +384,10 @@ async function switchOrganization(formData: FormData) {
   "use server";
   const organizationId = String(formData.get("organizationId") ?? "").trim();
   if (!organizationId) return;
-  await setActiveOrganization(organizationId);
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) return;
+  await setActiveOrganization(userId, organizationId);
   revalidatePath("/app");
 }
 

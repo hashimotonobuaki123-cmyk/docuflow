@@ -80,7 +80,7 @@ export default async function InviteAcceptPage({ params }: PageProps) {
   }
 
   if (res.organizationId) {
-    await setActiveOrganization(res.organizationId);
+    await setActiveOrganization(userId, res.organizationId);
     redirect(
       withLang(
         `/settings/organizations?org=${encodeURIComponent(res.organizationId)}`,

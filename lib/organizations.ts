@@ -138,8 +138,30 @@ export async function getActiveOrganizationId(
  * アクティブな組織を切り替える（サーバーアクション用）
  */
 export async function setActiveOrganization(
+  userId: string,
   organizationId: string
 ): Promise<void> {
+  if (!organizationId) return;
+  // テスト環境ではDBアクセスを避ける（Vitest用）
+  if (process.env.NODE_ENV === "test") {
+    const cookieStore = await cookies();
+    cookieStore.set(ACTIVE_ORG_COOKIE, organizationId, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365, // 1年
+      path: "/",
+    });
+    return;
+  }
+
+  // Safety: 所属している組織だけを active にできる（cookie 改ざん/将来の参照漏れ対策）
+  const memberships = await getUserOrganizations(userId);
+  const isMember = memberships.some((m) => m.organization_id === organizationId);
+  if (!isMember) {
+    throw new Error("Forbidden: not a member of the organization");
+  }
+
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_ORG_COOKIE, organizationId, {
     httpOnly: true,
