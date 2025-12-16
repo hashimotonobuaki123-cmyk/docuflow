@@ -97,7 +97,7 @@ export function PWAInstallPrompt() {
         });
       }
     } catch (error) {
-      console.error("インストールエラー:", error);
+      console.error(locale === "en" ? "Install error:" : "インストールエラー:", error);
       addToast({
         type: "error",
         title: locale === "en" ? "Error" : "エラー",
@@ -193,7 +193,7 @@ export function PWAInstallPrompt() {
               <button
                 onClick={handleDismiss}
                 className="btn btn-secondary px-4 py-2 text-sm"
-                aria-label="閉じる"
+                aria-label={locale === "en" ? "Close" : "閉じる"}
               >
                 <svg
                   className="h-5 w-5"

@@ -27,6 +27,12 @@ vi.mock("@/lib/supabaseClient", () => ({
   },
 }));
 
+// activityLog calls getActiveOrganizationId() unless organizationId is explicitly provided.
+// For unit tests, keep it deterministic and avoid depending on Supabase query builder mocks.
+vi.mock("../lib/organizations", () => ({
+  getActiveOrganizationId: vi.fn().mockResolvedValue(null),
+}));
+
 describe("activityLog", () => {
   beforeEach(() => {
     vi.clearAllMocks();

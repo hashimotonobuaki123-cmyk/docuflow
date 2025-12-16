@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
+import { useLocale } from "@/lib/useLocale";
 
 interface DocumentCardProps {
   id: string;
@@ -66,10 +67,20 @@ export function DocumentCard({
   onToggleArchive,
 }: DocumentCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const locale = useLocale();
+  const withLang = (href: string) => {
+    if (locale !== "en") return href;
+    if (href.includes("lang=en")) return href;
+    if (href.includes("?")) return `${href}&lang=en`;
+    return `${href}?lang=en`;
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("ja-JP", { month: "short", day: "numeric" });
+    return date.toLocaleDateString(locale === "en" ? "en-US" : "ja-JP", {
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
@@ -107,7 +118,7 @@ export function DocumentCard({
       {/* Header */}
       <div className="mb-3 pr-20">
         <Link
-          href={`/documents/${id}`}
+          href={withLang(`/documents/${id}`)}
           className="block group/title"
         >
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2 group-hover/title:text-emerald-600 dark:group-hover/title:text-emerald-400 transition-colors">
@@ -123,7 +134,7 @@ export function DocumentCard({
           {isArchived && (
             <Badge variant="default" size="sm">
               <Archive className="h-3 w-3 mr-1" />
-              アーカイブ
+              {locale === "en" ? "Archived" : "アーカイブ"}
             </Badge>
           )}
         </div>
@@ -142,7 +153,7 @@ export function DocumentCard({
           {tags.slice(0, 4).map((tag) => (
             <Link
               key={tag}
-              href={`/app?q=${encodeURIComponent(tag)}`}
+              href={withLang(`/app?q=${encodeURIComponent(tag)}`)}
               className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors"
             >
               #{tag}
@@ -184,7 +195,15 @@ export function DocumentCard({
               size="icon"
               className="h-7 w-7"
               onClick={() => onTogglePin?.(id, !isPinned)}
-              aria-label={isPinned ? "ピン解除" : "ピン留め"}
+              aria-label={
+                locale === "en"
+                  ? isPinned
+                    ? "Unpin"
+                    : "Pin"
+                  : isPinned
+                    ? "ピン解除"
+                    : "ピン留め"
+              }
             >
               <Pin className={`h-3.5 w-3.5 ${isPinned ? "text-amber-600" : ""}`} />
             </Button>
@@ -193,7 +212,15 @@ export function DocumentCard({
               size="icon"
               className="h-7 w-7"
               onClick={() => onToggleFavorite?.(id, !isFavorite)}
-              aria-label={isFavorite ? "お気に入り解除" : "お気に入り追加"}
+              aria-label={
+                locale === "en"
+                  ? isFavorite
+                    ? "Remove favorite"
+                    : "Add favorite"
+                  : isFavorite
+                    ? "お気に入り解除"
+                    : "お気に入り追加"
+              }
             >
               <Star className={`h-3.5 w-3.5 ${isFavorite ? "text-rose-500 fill-current" : ""}`} />
             </Button>
@@ -205,7 +232,7 @@ export function DocumentCard({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setShowMenu(!showMenu)}
-                aria-label="その他の操作"
+                aria-label={locale === "en" ? "More actions" : "その他の操作"}
               >
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </Button>
@@ -215,25 +242,31 @@ export function DocumentCard({
                   <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
                   <div className="absolute right-0 bottom-full mb-1 z-50 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
                     <Link
-                      href={`/documents/${id}`}
+                      href={withLang(`/documents/${id}`)}
                       className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      開く
+                      {locale === "en" ? "Open" : "開く"}
                     </Link>
                     <button
                       onClick={() => { onToggleArchive?.(id, !isArchived); setShowMenu(false); }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       {isArchived ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                      {isArchived ? "復元" : "アーカイブ"}
+                      {locale === "en"
+                        ? isArchived
+                          ? "Restore"
+                          : "Archive"
+                        : isArchived
+                          ? "復元"
+                          : "アーカイブ"}
                     </button>
                     <button
                       onClick={() => { onDelete?.(id); setShowMenu(false); }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      削除
+                      {locale === "en" ? "Delete" : "削除"}
                     </button>
                   </div>
                 </>

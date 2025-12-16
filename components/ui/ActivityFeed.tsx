@@ -10,6 +10,7 @@ import {
   Archive,
   RotateCcw,
 } from "lucide-react";
+import { useLocale } from "@/lib/useLocale";
 
 interface ActivityItem {
   id: string;
@@ -73,28 +74,21 @@ function getActivityColor(action: string) {
   }
 }
 
-function describeActivity(action: string): string {
-  const descriptions: Record<string, string> = {
-    create_document: "ドキュメントを作成",
-    update_document: "ドキュメントを更新",
-    delete_document: "ドキュメントを削除",
-    toggle_pinned: "ピン留めを変更",
-    toggle_favorite: "お気に入りを変更",
-    enable_share: "共有を有効化",
-    disable_share: "共有を無効化",
-    archive_document: "アーカイブに移動",
-    restore_document: "アーカイブから復元",
-  };
-  return descriptions[action] ?? action;
-}
-
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, locale: "ja" | "en"): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (locale === "en") {
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 
   if (diffMins < 1) return "たった今";
   if (diffMins < 60) return `${diffMins}分前`;
@@ -104,11 +98,40 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 export function ActivityFeed({ activities, className = "" }: ActivityFeedProps) {
+  const locale = useLocale();
+  const describeActivity = (action: string): string => {
+    const ja: Record<string, string> = {
+      create_document: "ドキュメントを作成",
+      update_document: "ドキュメントを更新",
+      delete_document: "ドキュメントを削除",
+      toggle_pinned: "ピン留めを変更",
+      toggle_favorite: "お気に入りを変更",
+      enable_share: "共有を有効化",
+      disable_share: "共有を無効化",
+      archive_document: "アーカイブに移動",
+      restore_document: "アーカイブから復元",
+    };
+    const en: Record<string, string> = {
+      create_document: "Created a document",
+      update_document: "Updated a document",
+      delete_document: "Deleted a document",
+      toggle_pinned: "Changed pin",
+      toggle_favorite: "Changed favorite",
+      enable_share: "Enabled sharing",
+      disable_share: "Disabled sharing",
+      archive_document: "Archived a document",
+      restore_document: "Restored a document",
+    };
+    return (locale === "en" ? en[action] : ja[action]) ?? action;
+  };
+
   if (activities.length === 0) {
     return (
       <div className={`rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 p-8 text-center ${className}`}>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          まだアクティビティがありません。最初のドキュメントを作成してみましょう。
+          {locale === "en"
+            ? "No activity yet. Create your first document to get started."
+            : "まだアクティビティがありません。最初のドキュメントを作成してみましょう。"}
         </p>
       </div>
     );
@@ -142,7 +165,7 @@ export function ActivityFeed({ activities, className = "" }: ActivityFeedProps) 
 
             {/* Time */}
             <time className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
-              {formatRelativeTime(activity.createdAt)}
+              {formatRelativeTime(activity.createdAt, locale)}
             </time>
           </div>
         ))}

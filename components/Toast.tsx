@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useLocale } from "@/lib/useLocale";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -24,6 +25,8 @@ type ToastProps = {
 };
 
 function Toast({ toast, onClose }: ToastProps) {
+  const locale = useLocale();
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose(toast.id);
@@ -62,7 +65,7 @@ function Toast({ toast, onClose }: ToastProps) {
       <button
         onClick={() => onClose(toast.id)}
         className="text-lg opacity-50 hover:opacity-100 transition-opacity"
-        aria-label="閉じる"
+        aria-label={locale === "en" ? "Close" : "閉じる"}
       >
         ×
       </button>

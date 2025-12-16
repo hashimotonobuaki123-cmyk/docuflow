@@ -46,6 +46,25 @@ export function middleware(req: NextRequest) {
     req.headers.get("accept-language"),
   );
 
+  // Marketing/legal pages: send EN users to the English equivalents even on deep links.
+  if (preferredLocale === "en") {
+    const marketingRedirects: Record<string, string> = {
+      "/pricing": "/en/pricing",
+      "/terms": "/en/terms",
+      "/privacy": "/en/privacy",
+      "/support": "/en/support",
+      "/company": "/en/company",
+      "/tokusho": "/en/legal-notice",
+      "/demo": "/demo/en",
+    };
+    const target = marketingRedirects[pathname];
+    if (target) {
+      const url = req.nextUrl.clone();
+      url.pathname = target;
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Marketing locale routing:
   // - Cookie wins (explicit user choice)
   // - Otherwise, default to EN unless the browser prefers Japanese
@@ -164,6 +183,13 @@ export const config = {
   matcher: [
     "/",
     "/en",
+    "/pricing",
+    "/terms",
+    "/privacy",
+    "/support",
+    "/company",
+    "/tokusho",
+    "/demo",
     "/app/:path*",
     "/new",
     "/documents/:path*",
