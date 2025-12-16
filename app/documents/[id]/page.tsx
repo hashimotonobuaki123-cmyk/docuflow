@@ -393,8 +393,10 @@ async function regenerateSummary(formData: FormData) {
 
   const organizationId =
     (data as { organization_id?: string | null } | null)?.organization_id ?? null;
-  // 1回分のAI呼び出しとして消費（要約再生成）
-  await ensureAndConsumeAICalls(userId, organizationId, 1, locale);
+  // 1回分のAI呼び出しとして消費（要約再生成 / OpenAIが有効な場合のみ）
+  if (process.env.OPENAI_API_KEY) {
+    await ensureAndConsumeAICalls(userId, organizationId, 1, locale);
+  }
 
   const { summary, tags } = await generateSummaryAndTags(data.raw_content);
 

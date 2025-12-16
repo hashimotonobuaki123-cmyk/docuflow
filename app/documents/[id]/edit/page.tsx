@@ -7,6 +7,7 @@ import { getEffectivePlan } from "@/lib/subscription";
 import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { canUseStorage } from "@/lib/subscriptionUsage";
 import { getLocaleFromParam, type Locale } from "@/lib/i18n";
+import { updateDocumentEmbedding } from "@/lib/similarSearch";
 
 const BYTES_PER_MB = 1024 * 1024;
 
@@ -109,9 +110,12 @@ async function updateDocument(formData: FormData) {
     console.error("Failed to insert document_versions:", e);
   }
 
-  // 編集時の要約再生成はAI呼び出しとして消費（ドキュメントの組織スコープに紐づける）
+  // 編集時の要約/埋め込み更新はAI呼び出しとして消費（ドキュメントの組織スコープに紐づける）
   const orgId = currentDoc.organization_id ?? null;
-  await ensureAndConsumeAICalls(cookieUserId, orgId, 1, locale);
+  if (process.env.OPENAI_API_KEY) {
+    // summary+tags + embedding
+    await ensureAndConsumeAICalls(cookieUserId, orgId, 2, locale);
+  }
 
   const { summary, tags } = await generateSummaryAndTags(rawContent);
 
@@ -140,6 +144,11 @@ async function updateDocument(formData: FormData) {
     documentId: id,
     documentTitle: title,
   });
+
+  // 本文が変わったら埋め込みも更新（OpenAIが有効な場合のみ）
+  if (process.env.OPENAI_API_KEY) {
+    updateDocumentEmbedding(id, rawContent, cookieUserId).catch(console.error);
+  }
 
   redirect(locale === "en" ? `/documents/${id}?lang=en` : `/documents/${id}`);
 }

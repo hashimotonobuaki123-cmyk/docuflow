@@ -31,6 +31,10 @@ export async function searchSimilarDocuments(
   try {
     // クエリテキストを埋め込みベクトルに変換
     const queryEmbedding = await generateEmbedding(query);
+    if (!queryEmbedding || queryEmbedding.length === 0) {
+      // Embeddingが利用できない場合は検索をスキップ
+      return [];
+    }
 
     // Supabase の RPC 関数を呼び出して類似検索
     const { data, error } = await supabase.rpc("match_documents", {
@@ -72,6 +76,10 @@ export async function updateDocumentEmbedding(
 
   try {
     const embedding = await generateEmbedding(content);
+    if (!embedding || embedding.length === 0) {
+      // Embeddingが利用できない場合は更新しない（型不整合や無駄な書き込みを防ぐ）
+      return;
+    }
 
     const { error } = await supabase
       .from("documents")
@@ -100,11 +108,15 @@ export async function findRelatedDocuments(
   matchCount: number = 5
 ): Promise<SimilarDocument[]> {
   try {
+    // userId が取れない場合は安全側で検索しない（他人のドキュメント本文を参照しない）
+    if (!userId) return [];
+
     // 基準ドキュメントの本文を取得
     const { data: doc, error: fetchError } = await supabase
       .from("documents")
       .select("raw_content")
       .eq("id", documentId)
+      .eq("user_id", userId)
       .single();
 
     if (fetchError || !doc?.raw_content) {
