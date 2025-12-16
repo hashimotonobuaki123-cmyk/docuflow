@@ -127,6 +127,36 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
+  // Additional auth pages for EN users
+  if (pathname === "/auth/forgot" && preferredLocale === "en") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/en/auth/forgot";
+    const res = NextResponse.redirect(url);
+    if (localeCookie !== "en") setLocaleCookie(res, "en");
+    return res;
+  }
+  if (pathname === "/auth/reset" && preferredLocale === "en") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/en/auth/reset";
+    const res = NextResponse.redirect(url);
+    if (localeCookie !== "en") setLocaleCookie(res, "en");
+    return res;
+  }
+  if (pathname === "/auth/logout" && preferredLocale === "en") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/en/auth/logout";
+    const res = NextResponse.redirect(url);
+    if (localeCookie !== "en") setLocaleCookie(res, "en");
+    return res;
+  }
+  if (pathname === "/auth/callback" && preferredLocale === "en") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/en/auth/callback";
+    const res = NextResponse.redirect(url);
+    if (localeCookie !== "en") setLocaleCookie(res, "en");
+    return res;
+  }
+
   // App pages: if EN is preferred and ?lang is missing, attach ?lang=en so SSR matches.
   if (
     isAuthed &&
@@ -182,7 +212,7 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    "/en",
+    "/en/:path*",
     "/pricing",
     "/terms",
     "/privacy",

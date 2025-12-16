@@ -60,10 +60,10 @@ function LoginFormEn() {
     setOauthLoading(true);
 
     try {
-      const redirectToParam = searchParams.get("redirectTo") || "/app";
+      const redirectToParam = searchParams.get("redirectTo") || "/app?lang=en";
       const callbackUrl =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(
+          ? `${window.location.origin}/en/auth/callback?redirectTo=${encodeURIComponent(
               redirectToParam,
             )}`
           : undefined;
@@ -209,6 +209,14 @@ function LoginFormEn() {
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
+                </div>
+                <div className="mt-2 flex items-center justify-end">
+                  <Link
+                    href="/en/auth/forgot"
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline-offset-4 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
               </div>
 
