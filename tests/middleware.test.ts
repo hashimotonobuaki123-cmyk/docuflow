@@ -3,6 +3,8 @@ import {
   isProtectedPath,
   PROTECTED_PATHS,
   AUTH_COOKIE,
+  LOCALE_COOKIE,
+  inferPreferredLocale,
 } from "../middleware";
 
 describe("middleware", () => {
@@ -49,6 +51,24 @@ describe("middleware", () => {
 
     it("AUTH_COOKIEが正しく定義されている", () => {
       expect(AUTH_COOKIE).toBe("docuhub_ai_auth");
+    });
+
+    it("LOCALE_COOKIEが正しく定義されている", () => {
+      expect(LOCALE_COOKIE).toBe("docuflow_lang");
+    });
+  });
+
+  describe("inferPreferredLocale", () => {
+    it("cookieがあればcookieを優先する", () => {
+      expect(inferPreferredLocale("en", "ja-JP,ja;q=0.9")).toBe("en");
+      expect(inferPreferredLocale("ja", "en-US,en;q=0.9")).toBe("ja");
+    });
+
+    it("cookieが無い場合はAccept-Languageで判定する（jaならja、それ以外はen）", () => {
+      expect(inferPreferredLocale(null, "ja-JP,ja;q=0.9,en-US;q=0.8")).toBe("ja");
+      expect(inferPreferredLocale(null, "en-US,en;q=0.9")).toBe("en");
+      expect(inferPreferredLocale(null, "")).toBe("en");
+      expect(inferPreferredLocale(null, null)).toBe("en");
     });
   });
 });
