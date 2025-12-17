@@ -28,6 +28,10 @@ type OrganizationRow = {
   current_period_end?: string | null;
 };
 
+type OrganizationMembershipRow = {
+  organization: OrganizationRow | OrganizationRow[] | null;
+};
+
 type BillingPageProps = {
   searchParams?:
     | {
@@ -100,7 +104,9 @@ export default async function BillingSettingsPage({ searchParams }: BillingPageP
   }
 
   const organizations = (orgMemberships ?? [])
-    .map((row: any) => (Array.isArray(row.organization) ? row.organization[0] : row.organization))
+    .map((row: OrganizationMembershipRow) =>
+      Array.isArray(row.organization) ? row.organization[0] : row.organization,
+    )
     .filter(Boolean) as OrganizationRow[];
 
   const primaryOrg = organizations[0] as OrganizationRow | undefined;

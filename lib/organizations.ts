@@ -14,11 +14,8 @@ import { captureError, captureEvent } from "@/lib/sentry";
 import {
   OrganizationRole,
   Organization,
-  getRoleDisplayName,
-  getRoleBadgeClass,
 } from "@/lib/organizationTypes";
 import { canAddMember } from "@/lib/subscription";
-import type { Locale } from "@/lib/i18n";
 
 function getDbClient() {
   // server-side では service_role を優先（RLSや auth セッション未導入でも運用できるようにする）

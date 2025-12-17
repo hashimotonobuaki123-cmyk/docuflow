@@ -35,6 +35,8 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
           className={`${sizeStyles[size]} rounded-full overflow-hidden flex items-center justify-center font-semibold bg-gradient-to-br from-emerald-500 to-sky-500 text-white ring-2 ring-white dark:ring-slate-900`}
         >
           {src ? (
+            // NOTE: next/image は remotePatterns 設定が必要になるため、Avatarは <img> のまま許可する
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt={alt || "Avatar"} className="h-full w-full object-cover" />
           ) : (
             <span>{initials}</span>

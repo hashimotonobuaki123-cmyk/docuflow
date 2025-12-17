@@ -627,7 +627,7 @@ export default async function Home() {
                     ))}
                   </div>
                   <p className="text-slate-300 leading-relaxed mb-6">
-                    "{testimonial.quote}"
+                    &ldquo;{testimonial.quote}&rdquo;
                   </p>
                   <div>
                     <div className="font-semibold text-white">{testimonial.author}</div>

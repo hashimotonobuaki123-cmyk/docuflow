@@ -1,5 +1,4 @@
 import { supabase } from "./supabaseClient";
-import { supabaseAdmin } from "./supabaseAdmin";
 
 /**
  * サブスクリプションプラン定義
@@ -169,6 +168,17 @@ export interface OrganizationSubscription {
   currentPeriodEnd: string | null;
 }
 
+type OrganizationSubscriptionRow = {
+  plan: SubscriptionPlan;
+  seat_limit: number | null;
+  document_limit: number | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  billing_email: string | null;
+  subscription_status: OrganizationSubscription["subscriptionStatus"];
+  current_period_end: string | null;
+};
+
 /**
  * 個人ユーザーのプラン情報を取得
  */
@@ -250,8 +260,8 @@ export async function getOrganizationSubscription(
   // Safety-by-default:
   // - userId が分かる文脈では、必ず membership 起点で organizations をスコープする（漏洩防止）
   const requesterUserId = options?.requesterUserId ?? null;
-  let data: any = null;
-  let error: any = null;
+  let data: OrganizationSubscriptionRow | null = null;
+  let error: unknown = null;
 
   if (requesterUserId) {
     const res = await supabase
@@ -275,8 +285,9 @@ export async function getOrganizationSubscription(
       .maybeSingle();
 
     error = res.error;
-    const org = (res.data as any)?.organization;
-    data = Array.isArray(org) ? org[0] : org;
+    const org = (res.data as { organization?: OrganizationSubscriptionRow | OrganizationSubscriptionRow[] | null } | null)
+      ?.organization;
+    data = (Array.isArray(org) ? org[0] : org) ?? null;
   } else {
     const res = await supabase
       .from("organizations")
@@ -285,7 +296,7 @@ export async function getOrganizationSubscription(
       )
       .eq("id", organizationId)
       .maybeSingle();
-    data = res.data;
+    data = res.data as OrganizationSubscriptionRow | null;
     error = res.error;
   }
 

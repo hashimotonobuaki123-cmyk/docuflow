@@ -9,7 +9,6 @@ interface SubscriptionLimitWarningProps {
   currentCount: number;
   limit: number;
   locale: Locale;
-  subscriptionType: "personal" | "organization";
 }
 
 export function SubscriptionLimitWarning({
@@ -17,7 +16,6 @@ export function SubscriptionLimitWarning({
   currentCount,
   limit,
   locale,
-  subscriptionType,
 }: SubscriptionLimitWarningProps) {
   const percentage = (currentCount / limit) * 100;
   const isWarning = percentage >= 80;

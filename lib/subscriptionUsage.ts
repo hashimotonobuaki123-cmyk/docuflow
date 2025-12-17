@@ -3,7 +3,7 @@
  */
 
 import { supabase } from "./supabaseClient";
-import { getEffectivePlan, type PlanLimits } from "./subscription";
+import { getEffectivePlan } from "./subscription";
 import { getAICallsThisMonth } from "./aiUsage";
 
 /**
