@@ -10,6 +10,10 @@
 
 <br />
 
+- 🇯🇵 **日本語 README**: [`README_ja.md`](README_ja.md)
+
+[//]: # (Keep README.md EN-first for international reviewers; Japanese details live in README_ja.md)
+
 [![CI](https://img.shields.io/github/actions/workflow/status/AyumuKobayashiproducts/docuflow/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI)](https://github.com/AyumuKobayashiproducts/docuflow/actions)
 [![Lighthouse](https://img.shields.io/badge/Lighthouse-92+-45ba4b?style=for-the-badge&logo=lighthouse&logoColor=white)](https://github.com/AyumuKobayashiproducts/docuflow/actions/workflows/lighthouse.yml)
 [![Coverage](https://img.shields.io/badge/Coverage-85%25+-10b981?style=for-the-badge&logo=codecov&logoColor=white)](https://codecov.io/gh/AyumuKobayashiproducts/docuflow)
@@ -92,121 +96,9 @@
 
 ## 🇯🇵 日本語での概要
 
-<details>
-<summary><strong>クリックして展開</strong></summary>
+日本語の詳細版は **`README_ja.md`** に移しました（スクショ/導線/手順/運用までまとめています）。
 
-<br />
-
-DocuFlow は、**PDF / Word などの業務ドキュメントを AI 要約・タグ付けして整理するための B2B SaaS 風ワークスペース**です。
-
-### 🔎 日本語クイック導線（レビュワー向け）
-
-- **日本語UI（アプリ）**: [`/app?lang=ja`](https://docuflow-azure.vercel.app/app?lang=ja)
-- **英語UI（アプリ）**: [`/app?lang=en`](https://docuflow-azure.vercel.app/app?lang=en)
-- **英語LP**: [`/en`](https://docuflow-azure.vercel.app/en)
-- **英語デモ（ログイン不要）**: [`/demo/en`](https://docuflow-azure.vercel.app/demo/en)
-- **アーキテクチャ**: [`docs/architecture.md`](docs/architecture.md)
-- **DB/RLS**: [`docs/db-schema.md`](docs/db-schema.md)
-- **セキュリティ**: [`docs/security.md`](docs/security.md)
-
-### 🌍 言語挙動（EN/JA）
-
-- **優先順位**: `docuflow_lang` Cookie → `Accept-Language`（`ja`なら日本語、それ以外は英語）
-- **URLで明示**: `?lang=en` / `?lang=ja`
-- **共有ページ**（`/share/[token]`）: `?lang` が無い場合は上記推論で自動判定。右上の **EN/日本語トグル**で切り替え可能。
-
-### このリポジトリが証明すること
-
-- ✅ **設計から運用まで一貫した実装力** — 認証・RBAC・課金・分析・監視・i18n をすべて1人で構築
-- ✅ **本番レベルのアーキテクチャ** — マルチテナント RLS、ベクトル検索、イベント駆動ログ
-- ✅ **品質へのこだわり** — 130+ テスト、E2E カバレッジ、Lighthouse CI、strict TypeScript
-- ✅ **運用を意識した設計** — Sentry 監視、Web Vitals ダッシュボード、PWA 対応
-
-### 技術スタック
-
-```
-Frontend:  Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS
-Backend:   Supabase (PostgreSQL + RLS + Auth) + OpenAI (GPT-4 + Embeddings)
-Infra:     Vercel + GitHub Actions CI/CD + Sentry
-Testing:   Vitest (130+ tests) + Playwright E2E
-```
-
-### デモ環境
-
-- **英語 UI**: [`/app?lang=en`](https://docuflow-azure.vercel.app/app?lang=en)
-- **日本語 UI**: [`/app?lang=ja`](https://docuflow-azure.vercel.app/app?lang=ja)
-
-サンプルドキュメントが多数用意されており、AI 要約・ベクトル検索・共有リンクなどの機能を体験できます。
-
----
-
-## 🧑‍💻 ローカルで動かす（日本語）
-
-### 前提
-
-- Node.js（推奨: LTS）
-- Supabase プロジェクト（DB + Auth）
-
-### 手順（最短）
-
-1. 依存をインストール
-
-```bash
-npm ci
-```
-
-2. `.env.local` を作成（最低限）
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-※管理系（監査ログ/アカウント削除/共有監査の書き込み）まで含めるなら：
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-3. Supabase 側で SQL を適用（必要に応じて）
-
-- `supabase/migrations/` を新しい順ではなく **順に**適用する想定です。
-- 最近追加された主なもの:
-  - 共有リンクの匿名列挙を防ぐ（RLS + RPC）
-  - `get_shared_document()` の戻り型調整
-  - `share_access_logs`（共有閲覧監査ログ）
-
-4. 起動
-
-```bash
-npm run dev
-```
-
-### よく使うコマンド
-
-```bash
-npm run lint
-npm run type-check
-npm test -- --run
-npm run build
-```
-
----
-
-## 🔐 共有リンク（運用メモ）
-
-- **共有リンクは閲覧専用**（編集/削除/コメントは常に認証必須）
-- **匿名列挙の防止**: 共有ページは `documents` を直接SELECTせず、RPC `get_shared_document(token)` のみで取得
-- **期限**: `share_expires_at` を超えると共有ページで取得できません（DB関数側で判定）
-- **期限UI**: `/documents/[id]` からプラン範囲内で期限を更新可能
-- **監査ログ**: `share_access_logs` に best-effort で保存（IP/UAはハッシュ化、保持は90日）
-
----
-
-## 🧰 CI / 運用メモ（日本語）
-
-- `supabase-migrations.yml` は **`SUPABASE_DB_URL` Secret が無い場合は自動適用をスキップ**します。
-- Supabase へ本番反映する運用は、プロジェクトの方針に合わせて
-  - GitHub Actions で自動適用（`SUPABASE_DB_URL` を設定）
-  - Supabase Dashboard の SQL Editor で手動適用
- どちらでもOKです。
-
-</details>
+- 🇯🇵 **日本語 README**: [`README_ja.md`](README_ja.md)
 
 <br />
 
