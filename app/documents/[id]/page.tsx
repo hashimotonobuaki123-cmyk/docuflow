@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { logActivity } from "@/lib/activityLog";
 import { generateSummaryAndTags } from "@/lib/ai";
 import { getEffectivePlan } from "@/lib/subscription";
@@ -61,6 +62,13 @@ type DocumentVersion = {
   summary: string | null;
   tags: string[] | null;
   created_at: string;
+};
+
+type ShareAccessLogRow = {
+  accessed_at: string;
+  locale: string | null;
+  token_prefix: string | null;
+  referer: string | null;
 };
 
 async function deleteDocument(formData: FormData) {
@@ -659,6 +667,19 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
 
   const versions = (versionsData ?? []) as DocumentVersion[];
 
+  let shareAccessLogs: ShareAccessLogRow[] = [];
+  let shareAccessLogsAvailable = false;
+  if (doc.share_token && supabaseAdmin) {
+    shareAccessLogsAvailable = true;
+    const { data: logs } = await supabaseAdmin
+      .from("share_access_logs")
+      .select("accessed_at, locale, token_prefix, referer")
+      .eq("document_id", doc.id)
+      .order("accessed_at", { ascending: false })
+      .limit(30);
+    shareAccessLogs = (logs ?? []) as ShareAccessLogRow[];
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b bg-white">
@@ -830,6 +851,64 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                           {locale === "en" ? "Disable" : "共有を停止"}
                         </button>
                       </form>
+                    </div>
+                    <div className="mt-2 w-full max-w-[420px]">
+                      <p className="text-[10px] font-semibold text-slate-500">
+                        {locale === "en" ? "Share access logs" : "共有閲覧ログ"}
+                      </p>
+                      {!shareAccessLogsAvailable ? (
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {locale === "en"
+                            ? "Audit logs are unavailable (server not configured)."
+                            : "監査ログは利用できません（サーバー設定が未完了です）。"}
+                        </p>
+                      ) : shareAccessLogs.length === 0 ? (
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {locale === "en"
+                            ? "No access logs yet."
+                            : "まだ閲覧ログがありません。"}
+                        </p>
+                      ) : (
+                        <div className="mt-1 overflow-hidden rounded-md border border-slate-200 bg-white">
+                          <div className="max-h-40 overflow-auto">
+                            <table className="w-full text-[10px]">
+                              <thead className="sticky top-0 bg-slate-50 text-slate-600">
+                                <tr>
+                                  <th className="px-2 py-1 text-left font-semibold">
+                                    {locale === "en" ? "Time" : "時刻"}
+                                  </th>
+                                  <th className="px-2 py-1 text-left font-semibold">
+                                    {locale === "en" ? "Locale" : "言語"}
+                                  </th>
+                                  <th className="px-2 py-1 text-left font-semibold">
+                                    {locale === "en" ? "Token" : "トークン"}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="text-slate-700">
+                                {shareAccessLogs.map((row, idx) => (
+                                  <tr key={`${row.accessed_at}-${idx}`} className="border-t">
+                                    <td className="px-2 py-1">
+                                      {new Date(row.accessed_at).toLocaleString(
+                                        locale === "en" ? "en-US" : "ja-JP",
+                                      )}
+                                    </td>
+                                    <td className="px-2 py-1">{row.locale ?? "—"}</td>
+                                    <td className="px-2 py-1 font-mono">
+                                      {(row.token_prefix ?? "—") + "…"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        {locale === "en"
+                          ? "Stored for 90 days. IP/User-Agent are hashed."
+                          : "保持期間は90日です（IP/UAはハッシュ化して保存）。"}
+                      </p>
                     </div>
                     </>
                   ) : (

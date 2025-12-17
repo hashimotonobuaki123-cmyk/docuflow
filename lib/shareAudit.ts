@@ -5,6 +5,26 @@ function sha256Hex(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+const RETENTION_DAYS = 90;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+let lastCleanupAt = 0;
+
+async function cleanupOldShareAccessLogs() {
+  if (!supabaseAdmin) return;
+  const now = Date.now();
+  if (now - lastCleanupAt < CLEANUP_INTERVAL_MS) return;
+  lastCleanupAt = now;
+
+  const cutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabaseAdmin
+    .from("share_access_logs")
+    .delete()
+    .lt("accessed_at", cutoff);
+  if (error) {
+    console.error("[shareAudit] cleanup failed:", error);
+  }
+}
+
 export async function logShareAccess(params: {
   documentId: string;
   token: string;
@@ -35,6 +55,10 @@ export async function logShareAccess(params: {
     // Do not break public share UX
     console.error("[shareAudit] insert failed:", error);
   }
+
+  // Best-effort retention enforcement
+  // (keeps the table small without requiring cron / scheduled jobs)
+  cleanupOldShareAccessLogs().catch(() => {});
 }
 
 
