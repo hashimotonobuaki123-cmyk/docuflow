@@ -23,33 +23,23 @@ export default async function PublicSharePage({
   const sp = await searchParams;
   const locale: Locale = getLocaleFromParam(sp?.lang);
 
-  const { data, error } = await supabase
-    .from("documents")
-    .select(
-      "id, title, category, raw_content, summary, tags, created_at, share_expires_at",
-    )
-    .eq("share_token", token)
-    .single();
+  // SECURITY:
+  // - Do NOT query `documents` directly with anon key (it enables enumeration if RLS allows it)
+  // - Use RPC `get_shared_document(p_share_token)` which returns only the requested row
+  const { data, error } = await supabase.rpc("get_shared_document", {
+    p_share_token: token,
+  });
 
   if (error) {
     console.error(error);
   }
 
-  if (!data) {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
     notFound();
   }
 
-  const now = new Date();
-  const expiresAt = data.share_expires_at
-    ? new Date(data.share_expires_at as string)
-    : null;
-
-  if (expiresAt && expiresAt.getTime() < now.getTime()) {
-    // 期限切れ
-    notFound();
-  }
-
-  const doc = data as {
+  const doc = row as {
     id: string;
     title: string;
     category: string | null;
@@ -57,6 +47,7 @@ export default async function PublicSharePage({
     summary: string | null;
     tags: string[] | null;
     created_at: string;
+    share_expires_at: string | null;
   };
 
   const tags = Array.isArray(doc.tags) ? doc.tags : [];

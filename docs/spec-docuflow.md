@@ -232,7 +232,7 @@ So that 誤って上書きしても元に戻せる
   - 認証済みユーザーは以下のドキュメントを参照可能:
     - `user_id = auth.uid()` の行
     - `organization_members` 経由で所属している `organization_id` を持つ行
-    - `share_token is not null` の行（共有リンク経由のみ）
+    - 共有は `get_shared_document(token)` の RPC 経由のみ（匿名の直接SELECTを禁止）
   - `INSERT`:
     - 個人ドキュメント: `organization_id is null` かつ `user_id = auth.uid()`
     - 組織ドキュメント: 所属組織（role が `owner` or `admin`）に対してのみ作成可能

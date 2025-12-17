@@ -198,7 +198,7 @@ RLS を本番で有効化する場合、以下の方針で運用する:
   - `user_id = auth.uid()` の行、または  
   - `organization_members` 経由で所属している `organization_id` を持つ行  
   のみ参照・更新可能。
-- `documents` の `share_token is not null` な行だけは、`/share/[token]` からの閲覧に限り公開。
+- 共有リンクは `get_shared_document(token)` の RPC でのみ公開（匿名の直接SELECTを禁止）。
 - `organizations` / `organization_members` / `organization_invitations` は、所属メンバーのみ参照可能で、管理操作はオーナー（`owner_id`）に限定。
 
 詳細な SQL は `supabase/migrations/20241205_enable_rls.sql` および  

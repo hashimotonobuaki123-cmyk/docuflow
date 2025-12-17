@@ -79,7 +79,7 @@
 
 1. `/documents/[id]` から「共有リンクを発行」を押す
 2. Server Action `toggleShare` がランダム文字列で `share_token` を生成
-3. `/share/[token]` にアクセスすると、`share_token` で `documents` 行を検索し、閲覧用ページを表示
+3. `/share/[token]` にアクセスすると、RPC `get_shared_document(token)` 経由で閲覧用データを取得（匿名の直接SELECTを禁止）
 4. 「共有を停止」で `share_token` を `null` に更新し、`activity_logs` に `disable_share` を残す
 
 #### 4.4 ベクトル検索（pgvector）

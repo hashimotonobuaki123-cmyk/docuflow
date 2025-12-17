@@ -441,10 +441,18 @@ USING (
   )
 );
 
--- Share tokens bypass RLS for public access
-CREATE POLICY "Anyone can view shared documents"
-ON documents FOR SELECT
-USING (share_token IS NOT NULL);
+-- Public share is token-based via RPC (prevents anonymous enumeration)
+-- NOTE: We do NOT allow anon SELECT on `documents` directly.
+CREATE OR REPLACE FUNCTION get_shared_document(p_share_token TEXT)
+RETURNS TABLE (id uuid, title text, raw_content text, created_at timestamptz)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  SELECT d.id, d.title, d.raw_content, d.created_at
+  FROM documents d
+  WHERE d.share_token = p_share_token
+    AND (d.share_expires_at IS NULL OR d.share_expires_at > NOW());
+END; $$;
 ```
 
 ### RBAC Implementation

@@ -206,10 +206,10 @@ DocuFlow では Supabase の RLS を本番運用レベルで有効化してい�
 
 | テーブル | SELECT | INSERT | UPDATE | DELETE |
 |:---------|:-------|:-------|:-------|:-------|
-| `documents` | 自分のみ + 共有リンク | 自分のみ | 自分のみ | 自分のみ |
+| `documents` | 自分のみ（共有はRPC関数経由） | 自分のみ | 自分のみ | 自分のみ |
 | `document_versions` | 自分のみ | 自分のみ | - | 自分のみ |
 | `activity_logs` | 自分のみ | 自分のみ | - | - |
-| `document_comments` | 自分のドキュメント + 共有 | 自分のドキュメント | - | 自分のコメント |
+| `document_comments` | 自分のドキュメント | 自分のドキュメント | - | 自分のコメント |
 
 #### ポリシーの仕組み
 
@@ -219,15 +219,12 @@ CREATE POLICY "Users can view own documents"
 ON public.documents FOR SELECT
 USING (
   (auth.uid() IS NOT NULL AND user_id::text = auth.uid()::text)
-  OR
-  (share_token IS NOT NULL)  -- 共有リンク用
 );
 ```
 
 #### 共有リンクの仕組み
 
-- `share_token` が設定されたドキュメントは、認証なしで閲覧可能
-- 専用関数 `get_shared_document(token)` で安全に取得
+- 共有リンクは `get_shared_document(token)` の RPC で安全に取得（匿名の直接SELECTを禁止）
 - 編集・削除は常に認証ユーザーのみ
 
 ### Service Role の使用
