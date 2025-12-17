@@ -23,6 +23,36 @@ export default async function PublicSharePage({
   const sp = await searchParams;
   const locale: Locale = getLocaleFromParam(sp?.lang);
 
+  const getTagsArray = (tags: unknown): string[] => {
+    if (Array.isArray(tags)) {
+      return tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+    }
+    if (typeof tags !== "string") return [];
+    const s = tags.trim();
+    if (!s) return [];
+    // JSON array string: '["a","b"]'
+    if (s.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    // Postgres array text representation: {"a","b"}
+    if (s.startsWith("{") && s.endsWith("}")) {
+      const inner = s.slice(1, -1).trim();
+      if (!inner) return [];
+      return inner
+        .split(",")
+        .map((t) => t.trim().replace(/^"+|"+$/g, "").replace(/\\"/g, "\""))
+        .filter((t) => t.length > 0);
+    }
+    return [];
+  };
+
   // SECURITY:
   // - Do NOT query `documents` directly with anon key (it enables enumeration if RLS allows it)
   // - Use RPC `get_shared_document(p_share_token)` which returns only the requested row
@@ -45,12 +75,12 @@ export default async function PublicSharePage({
     category: string | null;
     raw_content: string | null;
     summary: string | null;
-    tags: string[] | null;
+    tags: unknown;
     created_at: string;
     share_expires_at: string | null;
   };
 
-  const tags = Array.isArray(doc.tags) ? doc.tags : [];
+  const tags = getTagsArray(doc.tags);
 
   return (
     <div className="min-h-screen bg-slate-50">
