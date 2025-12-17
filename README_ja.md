@@ -23,6 +23,28 @@
 
 ---
 
+## 🧭 まずどこを見ればいい？（読者別）
+
+- **採用/面接で「成果物」を最速で見たい**:
+  - `Dashboard` → `Document detail` → `Share view` の順（下のスクショ参照）
+  - 英語UIは `?lang=en` で切替可
+- **実装の堅さ（RLS/RBAC/共有/監査）を見たい**:
+  - [`docs/security.md`](docs/security.md) → [`docs/db-schema.md`](docs/db-schema.md)
+- **アーキテクチャ/設計判断を見たい**:
+  - [`docs/architecture.md`](docs/architecture.md) → [`docs/adr/`](docs/adr)
+
+---
+
+## 📌 目次
+
+- [3分でわかる（何ができる？）](#-3分でわかる何ができる)
+- [スクリーンショット（主要導線）](#-スクリーンショット主要導線)
+- [セキュリティ / 共有リンクの考え方（要点）](#-セキュリティ--共有リンクの考え方要点)
+- [言語（EN/JA）挙動](#-言語enja挙動)
+- [ローカルで動かす（最短）](#-ローカルで動かす最短)
+- [CI / 運用メモ](#-ci--運用メモ)
+- [さらに読む](#-さらに読む)
+
 ## 🎯 3分でわかる（何ができる？）
 
 - **アップロード**: PDF / Word を投入すると、本文を抽出して保存
@@ -93,19 +115,28 @@
 
 ## 🧑‍💻 ローカルで動かす（最短）
 
+### 前提
+
+- Node.js（推奨: LTS）
+- Supabase プロジェクト（DB + Auth）
+
 ### 1) 依存をインストール
 
 ```bash
 npm ci
 ```
 
-### 2) `.env.local` を作成（最低限）
+### 2) `.env.local` を作成
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+| 変数 | 必須 | 目的 |
+|:--|:--:|:--|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key（公開） |
+| `SUPABASE_SERVICE_ROLE_KEY` | 任意 | 共有閲覧ログ/管理系（service_role） |
+| `OPENAI_API_KEY` | 任意 | AI要約/タグ/埋め込み（無くても動く） |
+| `NEXT_PUBLIC_SITE_URL` | 任意 | Stripe等の戻りURL（本番運用向け） |
 
-任意（管理系機能まで動かす / 監査ログの書き込みなど）:
-- `SUPABASE_SERVICE_ROLE_KEY`
+※ `SUPABASE_SERVICE_ROLE_KEY` が無い場合でもアプリは動きますが、**共有閲覧ログ（`share_access_logs`）の記録/閲覧**は無効化されます。
 
 ### 3) SupabaseのSQLを適用
 
@@ -121,12 +152,29 @@ npm ci
 npm run dev
 ```
 
+### 5) 動作確認チェックリスト（おすすめ）
+
+- `/app?lang=ja` にログインできる
+- ドキュメントを1件作成できる
+- 共有リンクを有効化 → `/share/<token>` が開ける
+- 共有ページを数回リロード → `share_access_logs` に行が増える
+
 ---
 
 ## 🧰 CI / 運用メモ
 
 - `.github/workflows/supabase-migrations.yml` は **`SUPABASE_DB_URL` Secret が無い場合はスキップ**（CIが赤くならない）
 - 自動適用したい場合は GitHub Secrets に `SUPABASE_DB_URL` を設定
+
+---
+
+## 👀 レビューで見てほしい実装ポイント（コード）
+
+- **言語ルーティング（EN-first）**: `proxy.ts`, `lib/serverLocale.ts`
+- **共有の安全設計**: `app/share/[token]/page.tsx`, `lib/shareAudit.ts`, `supabase/migrations/*share*`
+- **RBAC/組織**: `lib/organizations.ts`, `lib/billingScope.ts`
+- **AI使用量の強制**: `lib/aiUsage.ts`, `ensureAndConsumeAICalls` の呼び出し箇所
+- **メタデータ/SEO**: `app/layout.tsx`, `app/en/*`
 
 ---
 
