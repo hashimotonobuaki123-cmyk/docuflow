@@ -636,7 +636,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   {doc.share_token ? (
                     <>
                       <p className="max-w-[220px] truncate font-mono text-[10px] text-slate-700">
-                        /share/{doc.share_token}
+                        {withLang(`/share/${doc.share_token}`)}
                       </p>
                     <p className="text-[10px] text-slate-500">
                       {doc.share_expires_at

@@ -26,6 +26,9 @@ export default async function PublicSharePage({
   // - explicit ?lang
   // - cookie / Accept-Language (server-side inference)
   const locale: Locale = sp?.lang ? getLocaleFromParam(sp.lang) : await getPreferredLocale();
+  const selfPath = `/share/${token}`;
+  const langToggleHref = locale === "en" ? `${selfPath}?lang=ja` : `${selfPath}?lang=en`;
+  const langToggleLabel = locale === "en" ? "日本語" : "EN";
 
   const getTagsArray = (tags: unknown): string[] => {
     if (Array.isArray(tags)) {
@@ -105,6 +108,12 @@ export default async function PublicSharePage({
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
+            <Link
+              href={langToggleHref}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              {langToggleLabel}
+            </Link>
             <Link
               href={
                 locale === "en"
