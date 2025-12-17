@@ -12,6 +12,7 @@ on:
 jobs:
   run-migrations:
     name: Apply Supabase migrations
+    if: ${{ secrets.SUPABASE_DB_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -21,13 +22,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Check Supabase DB URL is configured
-        run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::SUPABASE_DB_URL secret is not set. Please configure it in GitHub Secrets."
-            exit 1
-          fi
 
       - name: Install PostgreSQL client
         run: |
@@ -50,6 +44,17 @@ jobs:
           done
 
           echo "All migrations applied successfully."
+
+  skip-migrations:
+    name: Skip Supabase migrations (missing SUPABASE_DB_URL)
+    if: ${{ secrets.SUPABASE_DB_URL == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain why this workflow was skipped
+        run: |
+          echo "SUPABASE_DB_URL secret is not set."
+          echo "Skipping automatic Supabase migrations in GitHub Actions."
+          echo "To enable: set SUPABASE_DB_URL in GitHub repo Settings > Secrets and variables > Actions."
 
 
 
