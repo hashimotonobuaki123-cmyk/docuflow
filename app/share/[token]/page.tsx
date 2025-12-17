@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { Logo } from "@/components/Logo";
 import { getLocaleFromParam, type Locale } from "@/lib/i18n";
 import { getPreferredLocale } from "@/lib/serverLocale";
+import { headers } from "next/headers";
+import { logShareAccess } from "@/lib/shareAudit";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +93,26 @@ export default async function PublicSharePage({
   const createdAtLabel = doc.created_at
     ? new Date(doc.created_at).toLocaleString(locale === "en" ? "en-US" : "ja-JP")
     : (locale === "en" ? "—" : "—");
+
+  // Best-effort audit log (privacy-preserving; hashed IP/UA)
+  try {
+    const h = await headers();
+    const xfwd = h.get("x-forwarded-for");
+    const ip =
+      (xfwd ? xfwd.split(",")[0]?.trim() : null) ??
+      h.get("x-real-ip") ??
+      null;
+    await logShareAccess({
+      documentId: doc.id,
+      token,
+      locale,
+      ip,
+      userAgent: h.get("user-agent"),
+      referer: h.get("referer"),
+    });
+  } catch {
+    // ignore
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

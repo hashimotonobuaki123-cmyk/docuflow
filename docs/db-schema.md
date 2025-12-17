@@ -23,7 +23,7 @@
 | `is_pinned`        | boolean      | ✔︎    | ピン留めフラグ。デフォルト `false`。                                                  |
 | `is_archived`      | boolean      | ✔︎    | アーカイブフラグ。論理削除用途。デフォルト `false`。                                  |
 | `share_token`      | text         | ✖︎    | 共有リンク用トークン。null のとき共有無効。                                           |
-| `share_expires_at` | timestamptz  | ✖︎    | 共有リンクの有効期限（現状未使用）。                                                  |
+| `share_expires_at` | timestamptz  | ✖︎    | 共有リンクの有効期限。期限切れは共有ページで取得できない（DB関数側で判定）。          |
 | `embedding`        | vector(1536) | ✖︎    | OpenAI text-embedding-3-small による埋め込みベクトル。類似検索用。                     |
 | `created_at`       | timestamptz  | ✔︎    | 作成日時。デフォルト `now()`。                                                        |
 

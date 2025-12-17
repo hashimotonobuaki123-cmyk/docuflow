@@ -313,6 +313,100 @@ async function regenerateShare(formData: FormData) {
   revalidatePath(`/documents/${id}`);
 }
 
+async function updateShareExpiry(formData: FormData) {
+  "use server";
+
+  const locale: Locale = getLocaleFromParam(String(formData.get("lang") ?? ""));
+  const id = String(formData.get("id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim() || null;
+  const value = String(formData.get("expiry") ?? "").trim(); // "none" or days as string
+  if (!id || !value) return;
+
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
+  if (!userId) {
+    throw new Error(locale === "en" ? "Please log in." : "ログインしてください。");
+  }
+
+  const { data: meta } = await supabase
+    .from("documents")
+    .select("organization_id, share_token")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const organizationId = (meta as { organization_id?: string | null } | null)
+    ?.organization_id ?? null;
+  const shareToken = (meta as { share_token?: string | null } | null)?.share_token ?? null;
+  if (!shareToken) {
+    throw new Error(
+      locale === "en"
+        ? "Share link is not enabled."
+        : "共有リンクが有効化されていません。",
+    );
+  }
+
+  const { plan, limits } = await getEffectivePlan(userId, organizationId);
+  if (!limits.shareLinks) {
+    throw new Error(
+      locale === "en"
+        ? "Share links are not available on your current plan."
+        : "共有リンク機能は現在のプランでは利用できません。",
+    );
+  }
+
+  let shareExpiresAt: string | null = null;
+  if (value === "none") {
+    if (plan === "team" || plan === "enterprise") {
+      shareExpiresAt = null;
+    } else {
+      throw new Error(
+        locale === "en"
+          ? "Unlimited share links are not available on your current plan."
+          : "無期限の共有リンクは現在のプランでは利用できません。",
+      );
+    }
+  } else {
+    const days = Number(value);
+    if (!Number.isFinite(days) || days <= 0) return;
+
+    const maxDays =
+      plan === "free" ? 7 : plan === "pro" ? 30 : 365;
+    if (days > maxDays) {
+      throw new Error(
+        locale === "en"
+          ? `Expiry must be within ${maxDays} days on your plan.`
+          : `有効期限はこのプランでは最大 ${maxDays} 日までです。`,
+      );
+    }
+    shareExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  }
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ share_expires_at: shareExpiresAt })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .not("share_token", "is", null);
+
+  if (error) {
+    console.error(error);
+    throw new Error(
+      locale === "en"
+        ? "Failed to update share expiry."
+        : "共有リンクの期限更新に失敗しました。",
+    );
+  }
+
+  await logActivity("enable_share", {
+    documentId: id,
+    documentTitle: title,
+    details: "expiry_update",
+  });
+
+  revalidatePath(`/documents/${id}`);
+}
+
 async function addComment(formData: FormData) {
   "use server";
 
@@ -472,9 +566,53 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
     is_archived?: boolean | null;
     share_token?: string | null;
     share_expires_at?: string | null;
+    organization_id?: string | null;
   };
 
   const tags = Array.isArray(doc.tags) ? doc.tags : [];
+  const { plan: effectivePlan } = await getEffectivePlan(
+    userId,
+    (doc as { organization_id?: string | null }).organization_id ?? null,
+  );
+
+  const shareExpiryOptions: Array<{ value: string; label: string }> = (() => {
+    const base = [
+      { value: "1", label: locale === "en" ? "1 day" : "1日" },
+      { value: "7", label: locale === "en" ? "7 days" : "7日" },
+    ];
+    if (effectivePlan === "free") return base;
+    if (effectivePlan === "pro") {
+      return [
+        ...base,
+        { value: "30", label: locale === "en" ? "30 days" : "30日" },
+      ];
+    }
+    // team / enterprise
+    return [
+      ...base,
+      { value: "30", label: locale === "en" ? "30 days" : "30日" },
+      { value: "90", label: locale === "en" ? "90 days" : "90日" },
+      { value: "none", label: locale === "en" ? "No expiry" : "期限なし" },
+    ];
+  })();
+
+  const shareExpiryDefault = (() => {
+    if (!doc.share_expires_at) return "none";
+    const expiresAt = new Date(doc.share_expires_at);
+    const now = new Date();
+    const diffMs = expiresAt.getTime() - now.getTime();
+    if (!Number.isFinite(diffMs) || diffMs <= 0) return "1";
+    const days = Math.max(1, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
+    const numericOptions = shareExpiryOptions
+      .map((o) => Number(o.value))
+      .filter((n) => Number.isFinite(n));
+    if (numericOptions.length === 0) return "none";
+    let best = numericOptions[0];
+    for (const n of numericOptions) {
+      if (Math.abs(n - days) < Math.abs(best - days)) best = n;
+    }
+    return String(best);
+  })();
 
   // 作成日時は activity_logs の create_document があればそちらを優先
   let createdAtDisplay: string | null = null;
@@ -648,6 +786,28 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                           : "期限: なし"}
                     </p>
                     <div className="flex items-center gap-2">
+                      <form action={updateShareExpiry} className="flex items-center gap-1">
+                        <input type="hidden" name="lang" value={locale} />
+                        <input type="hidden" name="id" value={doc.id} />
+                        <input type="hidden" name="title" value={doc.title} />
+                        <select
+                          name="expiry"
+                          defaultValue={shareExpiryDefault}
+                          className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-700"
+                        >
+                          {shareExpiryOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="submit"
+                          className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          {locale === "en" ? "Update expiry" : "期限を更新"}
+                        </button>
+                      </form>
                       <form action={regenerateShare}>
                         <input type="hidden" name="lang" value={locale} />
                         <input type="hidden" name="id" value={doc.id} />

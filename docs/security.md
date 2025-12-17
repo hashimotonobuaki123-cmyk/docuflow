@@ -66,6 +66,7 @@ DocuFlow のセキュリティ方針と実装の要点をまとめます。
   - トークンは UUID で十分長く推測困難。
   - 共有リンクはいつでも無効化可能（`share_token = null`）。
   - `share_expires_at` は DB 関数側で失効判定し、期限切れは取得できない。
+  - 共有ページの閲覧は `share_access_logs` に best-effort で記録（IP/UAはハッシュ化して保存）。
 
 ---
 
