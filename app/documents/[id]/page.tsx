@@ -12,6 +12,8 @@ import { ensureAndConsumeAICalls } from "@/lib/aiUsage";
 import { getLocaleFromParam, type Locale } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 import { RegenerateSummaryButton } from "@/components/RegenerateSummaryButton";
+import { ShareLinkToolbar } from "@/components/ShareLinkToolbar";
+import { getSiteUrl } from "@/lib/getSiteUrl";
 
 // UTC の ISO 文字列を、日本時間 (UTC+9) の "YYYY/MM/DD HH:MM" に変換するヘルパー
 function formatJstDateTime(value: string | null): string | null {
@@ -622,6 +624,16 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
     return String(best);
   })();
 
+  const shareUrl = doc.share_token
+    ? `${getSiteUrl().replace(/\/+$/, "")}${withLang(`/share/${doc.share_token}`)}`
+    : null;
+
+  const shareExpiryValueSafe = (() => {
+    const allowed = new Set(shareExpiryOptions.map((o) => o.value));
+    if (allowed.has(shareExpiryDefault)) return shareExpiryDefault;
+    return shareExpiryOptions[0]?.value ?? "7";
+  })();
+
   // 作成日時は activity_logs の create_document があればそちらを優先
   let createdAtDisplay: string | null = null;
   const { data: createdLog } = await supabase
@@ -794,9 +806,14 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                   </p>
                   {doc.share_token ? (
                     <>
-                      <p className="max-w-[220px] truncate font-mono text-[10px] text-slate-700">
-                        {withLang(`/share/${doc.share_token}`)}
-                      </p>
+                      {shareUrl && (
+                        <p className="max-w-[340px] truncate font-mono text-[10px] text-slate-700">
+                          {shareUrl}
+                        </p>
+                      )}
+                      {shareUrl && (
+                        <ShareLinkToolbar url={shareUrl} locale={locale} />
+                      )}
                     <p className="text-[10px] text-slate-500">
                       {doc.share_expires_at
                         ? locale === "en"
@@ -813,7 +830,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                         <input type="hidden" name="title" value={doc.title} />
                         <select
                           name="expiry"
-                          defaultValue={shareExpiryDefault}
+                          defaultValue={shareExpiryValueSafe}
                           className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-700"
                         >
                           {shareExpiryOptions.map((opt) => (
