@@ -1,16 +1,6 @@
 import Link from "next/link";
-import { getPreferredLocale } from "@/lib/serverLocale";
 
-export default async function NotFound() {
-  const locale = await getPreferredLocale();
-  const withLang = (href: string) => {
-    if (locale !== "en") return href;
-    if (href.includes("lang=en")) return href;
-    if (href.includes("?")) return `${href}&lang=en`;
-    return `${href}?lang=en`;
-  };
-  const homeHref = locale === "en" ? "/en" : "/";
-
+export default function NotFound() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/20 flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center animate-fade-in-up">
@@ -40,27 +30,17 @@ export default async function NotFound() {
 
         {/* Message */}
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-          {locale === "en" ? "Page not found" : "ページが見つかりません"}
+          ページが見つかりません
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mb-8">
-          {locale === "en" ? (
-            <>
-              The page you’re looking for doesn’t exist or has moved.
-              <br />
-              Please check the URL.
-            </>
-          ) : (
-            <>
-              お探しのページは存在しないか、移動した可能性があります。
-              <br />
-              URLをご確認ください。
-            </>
-          )}
+          お探しのページは存在しないか、移動した可能性があります。
+          <br />
+          URLをご確認ください。
         </p>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link href={homeHref} className="btn btn-primary px-6">
+          <Link href="/" className="btn btn-primary px-6">
             <svg
               className="h-4 w-4"
               fill="none"
@@ -74,39 +54,27 @@ export default async function NotFound() {
                 d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
               />
             </svg>
-            <span>{locale === "en" ? "Back to home" : "トップへ戻る"}</span>
+            <span>トップへ戻る</span>
           </Link>
-          <Link href={withLang("/app")} className="btn btn-secondary px-6">
-            <span>{locale === "en" ? "Open dashboard" : "ダッシュボードへ"}</span>
+          <Link href="/app" className="btn btn-secondary px-6">
+            <span>ダッシュボードへ</span>
           </Link>
         </div>
 
         {/* Quick Links */}
         <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-700">
           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-4">
-            {locale === "en" ? "Common pages" : "よく使われるページ"}
+            よく使われるページ
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             {[
-              {
-                href: "/app",
-                label: locale === "en" ? "Dashboard" : "ダッシュボード",
-                icon: "📄",
-              },
-              {
-                href: "/new",
-                label: locale === "en" ? "New document" : "新規作成",
-                icon: "➕",
-              },
-              {
-                href: "/settings",
-                label: locale === "en" ? "Settings" : "設定",
-                icon: "⚙️",
-              },
+              { href: "/app", label: "ダッシュボード", icon: "📄" },
+              { href: "/new", label: "新規作成", icon: "➕" },
+              { href: "/settings", label: "設定", icon: "⚙️" },
             ].map((link) => (
               <Link
                 key={link.href}
-                href={withLang(link.href)}
+                href={link.href}
                 className="flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 <span>{link.icon}</span>

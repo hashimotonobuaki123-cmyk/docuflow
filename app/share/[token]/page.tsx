@@ -3,9 +3,6 @@ import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Logo } from "@/components/Logo";
 import { getLocaleFromParam, type Locale } from "@/lib/i18n";
-import { getPreferredLocale } from "@/lib/serverLocale";
-import { headers } from "next/headers";
-import { logShareAccess } from "@/lib/shareAudit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,95 +21,51 @@ export default async function PublicSharePage({
 }: PageProps) {
   const { token } = await params;
   const sp = await searchParams;
-  // Locale priority:
-  // - explicit ?lang
-  // - cookie / Accept-Language (server-side inference)
-  const locale: Locale = sp?.lang ? getLocaleFromParam(sp.lang) : await getPreferredLocale();
-  const selfPath = `/share/${token}`;
-  const langToggleHref = locale === "en" ? `${selfPath}?lang=ja` : `${selfPath}?lang=en`;
-  const langToggleLabel = locale === "en" ? "日本語" : "EN";
-
-  const getTagsArray = (tags: unknown): string[] => {
-    if (Array.isArray(tags)) {
-      return tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
-    }
-    if (typeof tags !== "string") return [];
-    const s = tags.trim();
-    if (!s) return [];
-    // JSON array string: '["a","b"]'
-    if (s.startsWith("[")) {
-      try {
-        const parsed = JSON.parse(s);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    // Postgres array text representation: {"a","b"}
-    if (s.startsWith("{") && s.endsWith("}")) {
-      const inner = s.slice(1, -1).trim();
-      if (!inner) return [];
-      return inner
-        .split(",")
-        .map((t) => t.trim().replace(/^"+|"+$/g, "").replace(/\\"/g, "\""))
-        .filter((t) => t.length > 0);
-    }
-    return [];
+  const locale: Locale = getLocaleFromParam(sp?.lang);
+  const withLang = (href: string) => {
+    if (locale !== "en") return href;
+    if (href.includes("lang=en")) return href;
+    if (href.includes("?")) return `${href}&lang=en`;
+    return `${href}?lang=en`;
   };
 
-  // SECURITY:
-  // - Do NOT query `documents` directly with anon key (it enables enumeration if RLS allows it)
-  // - Use RPC `get_shared_document(p_share_token)` which returns only the requested row
-  const { data, error } = await supabase.rpc("get_shared_document", {
-    p_share_token: token,
-  });
+  const { data, error } = await supabase
+    .from("documents")
+    .select(
+      "id, title, category, raw_content, summary, tags, created_at, share_expires_at",
+    )
+    .eq("share_token", token)
+    .single();
 
   if (error) {
     console.error(error);
   }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) {
+  if (!data) {
     notFound();
   }
 
-  const doc = row as {
+  const now = new Date();
+  const expiresAt = data.share_expires_at
+    ? new Date(data.share_expires_at as string)
+    : null;
+
+  if (expiresAt && expiresAt.getTime() < now.getTime()) {
+    // 期限切れ
+    notFound();
+  }
+
+  const doc = data as {
     id: string;
     title: string;
     category: string | null;
     raw_content: string | null;
     summary: string | null;
-    tags: unknown;
+    tags: string[] | null;
     created_at: string;
-    share_expires_at: string | null;
   };
 
-  const tags = getTagsArray(doc.tags);
-  const createdAtLabel = doc.created_at
-    ? new Date(doc.created_at).toLocaleString(locale === "en" ? "en-US" : "ja-JP")
-    : (locale === "en" ? "—" : "—");
-
-  // Best-effort audit log (privacy-preserving; hashed IP/UA)
-  try {
-    const h = await headers();
-    const xfwd = h.get("x-forwarded-for");
-    const ip =
-      (xfwd ? xfwd.split(",")[0]?.trim() : null) ??
-      h.get("x-real-ip") ??
-      null;
-    await logShareAccess({
-      documentId: doc.id,
-      token,
-      locale,
-      ip,
-      userAgent: h.get("user-agent"),
-      referer: h.get("referer"),
-    });
-  } catch {
-    // ignore
-  }
+  const tags = Array.isArray(doc.tags) ? doc.tags : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -131,15 +84,9 @@ export default async function PublicSharePage({
           </div>
           <div className="flex items-center gap-3 text-xs">
             <Link
-              href={langToggleHref}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              {langToggleLabel}
-            </Link>
-            <Link
               href={
                 locale === "en"
-                  ? `/en/auth/login?redirectTo=${encodeURIComponent("/app?lang=en")}`
+                  ? `/auth/login?redirectTo=${encodeURIComponent("/app?lang=en")}`
                   : `/auth/login?redirectTo=${encodeURIComponent("/app")}`
               }
               className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
@@ -165,11 +112,11 @@ export default async function PublicSharePage({
                     {doc.category}
                   </span>
                 )}
-                {doc.created_at ? (
-                  <time dateTime={doc.created_at}>{createdAtLabel}</time>
-                ) : (
-                  <span>{createdAtLabel}</span>
-                )}
+                <time dateTime={doc.created_at}>
+                  {new Date(doc.created_at).toLocaleString(
+                    locale === "en" ? "en-US" : "ja-JP",
+                  )}
+                </time>
               </div>
             </div>
 

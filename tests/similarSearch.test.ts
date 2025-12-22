@@ -15,16 +15,13 @@ vi.mock("openai", () => ({
 vi.mock("../lib/supabaseClient", () => ({
   supabase: {
     from: vi.fn().mockReturnValue({
-      select: vi.fn().mockImplementation(() => {
-        const chain: any = {
-          eq: vi.fn(),
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
             data: { raw_content: "test content" },
             error: null,
           }),
-        };
-        chain.eq.mockReturnValue(chain); // allow .eq(...).eq(...).single()
-        return chain;
+        }),
       }),
       update: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({

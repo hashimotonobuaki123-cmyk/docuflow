@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
-import { getEffectivePlan } from "@/lib/subscription";
 import { Logo } from "@/components/Logo";
-import { getLocaleFromParam, type Locale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
+import { getLocaleFromParam } from "@/lib/i18n";
 
 // JST 表示用フォーマット（詳細画面と同じロジック）
 function formatJstDateTime(value: string | null): string | null {
@@ -30,13 +28,9 @@ type PageProps = {
     id: string;
     versionId: string;
   };
-  searchParams?:
-    | {
-        lang?: string;
-      }
-    | Promise<{
-        lang?: string;
-      }>;
+  searchParams?: {
+    lang?: string;
+  };
 };
 
 type DiffPart = {
@@ -97,29 +91,12 @@ function diffLines(oldText: string, newText: string): DiffPart[] {
 
 export default async function VersionComparePage({ params, searchParams }: PageProps) {
   const { id, versionId } = params;
-  const sp = searchParams ? await searchParams : undefined;
-  const locale: Locale = getLocaleFromParam(sp?.lang);
-  const withLang = (href: string) => {
-    if (locale !== "en") return href;
-    if (href.includes("lang=en")) return href;
-    if (href.includes("?")) return `${href}&lang=en`;
-    return `${href}?lang=en`;
-  };
-
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("docuhub_ai_user_id")?.value ?? null;
-  if (!userId) {
-    const loginPath = locale === "en" ? "/en/auth/login" : "/auth/login";
-    redirect(
-      `${loginPath}?redirectTo=${encodeURIComponent(withLang(`/documents/${id}`))}`,
-    );
-  }
+  const locale: Locale = getLocaleFromParam(searchParams?.lang);
 
   const { data: docData, error: docError } = await supabase
     .from("documents")
     .select("*")
     .eq("id", id)
-    .eq("user_id", userId)
     .single();
 
   const { data: versionData, error: versionError } = await supabase
@@ -127,7 +104,6 @@ export default async function VersionComparePage({ params, searchParams }: PageP
     .select("*")
     .eq("id", versionId)
     .eq("document_id", id)
-    .eq("user_id", userId)
     .single();
 
   if (docError || !docData || versionError || !versionData) {
@@ -143,7 +119,6 @@ export default async function VersionComparePage({ params, searchParams }: PageP
     summary: string | null;
     tags: string[] | null;
     created_at: string;
-    organization_id?: string | null;
   };
 
   const version = versionData as {
@@ -163,12 +138,6 @@ export default async function VersionComparePage({ params, searchParams }: PageP
 
   const diff = diffLines(version.raw_content ?? "", doc.raw_content ?? "");
 
-  // バージョン履歴はプラン機能（Freeでは閲覧不可）
-  const { limits } = await getEffectivePlan(userId, doc.organization_id ?? null);
-  if (!limits.versionHistory) {
-    redirect(withLang(`/documents/${doc.id}`));
-  }
-
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b bg-white">
@@ -177,17 +146,21 @@ export default async function VersionComparePage({ params, searchParams }: PageP
             <Logo />
             <div className="text-xs text-slate-600">
               <p className="font-semibold">
-                {locale === "en" ? "Version compare" : "バージョン比較"}
+                {locale === "en" ? "Version comparison" : "バージョン比較"}
               </p>
               <p className="text-[11px]">
                 {locale === "en"
-                  ? "Compare the current content with a saved version side by side."
+                  ? "Compare the current version with a previous version side by side."
                   : "現在の内容と、選択したバージョンの内容を左右に並べて表示します。"}
               </p>
             </div>
           </div>
           <Link
-            href={withLang(`/documents/${doc.id}`)}
+            href={
+              locale === "en"
+                ? `/documents/${doc.id}?lang=en`
+                : `/documents/${doc.id}`
+            }
             className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             {locale === "en" ? "Back to details" : "詳細へ戻る"}
@@ -200,7 +173,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
           {/* 現在の内容 */}
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-xs font-semibold text-slate-800">
-              {locale === "en" ? "Current" : "現在の内容"}
+              {locale === "en" ? "Current version" : "現在の内容"}
             </h2>
             <p className="mb-1 text-[11px] text-slate-500">
               {currentCreatedAt}
@@ -217,7 +190,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
             {doc.summary && (
               <div className="mt-3 rounded-md bg-emerald-50/70 p-2 text-[11px] text-slate-800">
                 <p className="mb-1 font-semibold text-emerald-800">
-                  {locale === "en" ? "AI summary" : "AI 要約"}
+                  {locale === "en" ? "AI Summary" : "AI 要約"}
                 </p>
                 <p className="whitespace-pre-wrap">{doc.summary}</p>
               </div>
@@ -225,7 +198,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
             {doc.raw_content && (
               <div className="mt-3">
                 <p className="mb-1 text-[11px] font-semibold text-slate-700">
-                  {locale === "en" ? "Content" : "本文"}
+                  {locale === "en" ? "Body" : "本文"}
                 </p>
                 <div className="h-64 overflow-auto rounded-md border border-slate-100 bg-slate-50 p-2 text-[11px] text-slate-800">
                   <pre className="whitespace-pre-wrap font-sans">
@@ -257,7 +230,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
             {version.summary && (
               <div className="mt-3 rounded-md bg-slate-50 p-2 text-[11px] text-slate-800">
                 <p className="mb-1 font-semibold text-slate-700">
-                  {locale === "en" ? "Summary at that time" : "当時の AI 要約"}
+                  {locale === "en" ? "AI Summary at this version" : "当時の AI 要約"}
                 </p>
                 <p className="whitespace-pre-wrap">{version.summary}</p>
               </div>
@@ -265,7 +238,7 @@ export default async function VersionComparePage({ params, searchParams }: PageP
             {version.raw_content && (
               <div className="mt-3">
                 <p className="mb-1 text-[11px] font-semibold text-slate-700">
-                  {locale === "en" ? "Content at that time" : "当時の本文"}
+                  {locale === "en" ? "Body at this version" : "当時の本文"}
                 </p>
                 <div className="h-64 overflow-auto rounded-md border border-slate-100 bg-slate-50 p-2 text-[11px] text-slate-800">
                   <pre className="whitespace-pre-wrap font-sans">
@@ -280,20 +253,18 @@ export default async function VersionComparePage({ params, searchParams }: PageP
         {/* 差分ハイライト */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-2 text-xs font-semibold text-slate-800">
-            {locale === "en"
-              ? "Diff highlight (content)"
-              : "本文の差分ハイライト"}
+            {locale === "en" ? "Body diff highlight" : "本文の差分ハイライト"}
           </h2>
           <p className="mb-2 text-[11px] text-slate-500">
             {locale === "en"
-              ? "“-” is the previous version and “+” is the current version. Added/removed lines are highlighted."
-              : "左が「- 当時の本文」、右が「+ 現在の本文」です。行単位で追加・削除された箇所を色分けしています。"}
+              ? '"-" indicates removed lines, "+" indicates added lines. Line-by-line diff highlighting.'
+              : '左が「- 当時の本文」、右が「+ 現在の本文」です。行単位で追加・削除された箇所を色分けしています。'}
           </p>
           <div className="h-64 overflow-auto rounded-md border border-slate-100 bg-slate-50 p-2 text-[11px] font-mono text-slate-800">
             {diff.length === 0 ? (
               <p className="text-[11px] text-slate-500">
                 {locale === "en"
-                  ? "No differences in content."
+                  ? "No differences in the body text."
                   : "本文の差分はありません。"}
               </p>
             ) : (

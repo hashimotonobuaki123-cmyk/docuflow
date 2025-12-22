@@ -72,18 +72,10 @@ function formatSupabaseError(err: unknown) {
   if (!err) return "unknown error";
   if (typeof err === "string") return err;
   try {
-    const anyErr = err as {
-      code?: string | number;
-      message?: string;
-      details?: string;
-      hint?: string;
-    };
-    const code = anyErr.code ? `code=${String(anyErr.code)}` : "";
+    const anyErr = err as any;
+    const code = anyErr.code ? `code=${anyErr.code}` : "";
     const message =
-      anyErr.message ||
-      anyErr.details ||
-      anyErr.hint ||
-      JSON.stringify(anyErr);
+      anyErr.message || anyErr.details || anyErr.hint || JSON.stringify(anyErr);
     return [code, message].filter(Boolean).join(" ").trim();
   } catch {
     return String(err);
@@ -189,9 +181,7 @@ export async function POST(req: NextRequest) {
 
     if (insertErr) {
       // Duplicate key: already processed/processing → 冪等に 200
-      const insertErrCode = (insertErr as { code?: string | number } | null)
-        ?.code;
-      if (String(insertErrCode) === "23505") {
+      if ((insertErr as any).code === "23505") {
         const { data: existing } = await supabaseAdmin
           .from("stripe_webhook_events")
           .select("status")
